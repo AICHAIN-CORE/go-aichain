@@ -54,7 +54,6 @@ type cppEthereumGenesisSpec struct {
 	Genesis struct {
 		Nonce      hexutil.Bytes  `json:"nonce"`
 		Difficulty *hexutil.Big   `json:"difficulty"`
-		MixHash    common.Hash    `json:"mixHash"`
 		Author     common.Address `json:"author"`
 		Timestamp  hexutil.Uint64 `json:"timestamp"`
 		ParentHash common.Hash    `json:"parentHash"`
@@ -117,8 +116,6 @@ func newCppEthereumGenesisSpec(network string, genesis *core.Genesis) (*cppEther
 
 	spec.Genesis.Nonce = (hexutil.Bytes)(make([]byte, 8))
 	binary.LittleEndian.PutUint64(spec.Genesis.Nonce[:], genesis.Nonce)
-
-	spec.Genesis.MixHash = genesis.Mixhash
 	spec.Genesis.Difficulty = (*hexutil.Big)(genesis.Difficulty)
 	spec.Genesis.Author = genesis.Coinbase
 	spec.Genesis.Timestamp = (hexutil.Uint64)(genesis.Timestamp)
@@ -203,7 +200,6 @@ type parityChainSpec struct {
 		Seal struct {
 			AICHAIN struct {
 				Nonce   hexutil.Bytes `json:"nonce"`
-				MixHash hexutil.Bytes `json:"mixHash"`
 			} `json:"aichain"`
 		} `json:"seal"`
 
@@ -297,7 +293,6 @@ func newParityChainSpec(network string, genesis *core.Genesis, bootnodes []strin
 	spec.Genesis.Seal.AICHAIN.Nonce = (hexutil.Bytes)(make([]byte, 8))
 	binary.LittleEndian.PutUint64(spec.Genesis.Seal.AICHAIN.Nonce[:], genesis.Nonce)
 
-	spec.Genesis.Seal.AICHAIN.MixHash = (hexutil.Bytes)(genesis.Mixhash[:])
 	spec.Genesis.Difficulty = (*hexutil.Big)(genesis.Difficulty)
 	spec.Genesis.Author = genesis.Coinbase
 	spec.Genesis.Timestamp = (hexutil.Uint64)(genesis.Timestamp)
@@ -349,7 +344,6 @@ type pyEthereumGenesisSpec struct {
 	ExtraData  hexutil.Bytes     `json:"extraData"`
 	GasLimit   hexutil.Uint64    `json:"gasLimit"`
 	Difficulty *hexutil.Big      `json:"difficulty"`
-	Mixhash    common.Hash       `json:"mixhash"`
 	Coinbase   common.Address    `json:"coinbase"`
 	Alloc      core.GenesisAlloc `json:"alloc"`
 	ParentHash common.Hash       `json:"parentHash"`
@@ -367,7 +361,6 @@ func newPyEthereumGenesisSpec(network string, genesis *core.Genesis) (*pyEthereu
 		ExtraData:  genesis.ExtraData,
 		GasLimit:   (hexutil.Uint64)(genesis.GasLimit),
 		Difficulty: (*hexutil.Big)(genesis.Difficulty),
-		Mixhash:    genesis.Mixhash,
 		Coinbase:   genesis.Coinbase,
 		Alloc:      genesis.Alloc,
 		ParentHash: genesis.ParentHash,

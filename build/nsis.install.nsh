@@ -24,14 +24,14 @@ Section "Gait" GETH_IDX
   createShortCut "$SMPROGRAMS\${APPNAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "" ""
 
   # Firewall - remove rules (if exists)
-  SimpleFC::AdvRemoveRule "Gait incoming peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Gait outgoing peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Gait UDP discovery (UDP:30303)"
+  SimpleFC::AdvRemoveRule "Gait incoming peers (TCP:30323)"
+  SimpleFC::AdvRemoveRule "Gait outgoing peers (TCP:30323)"
+  SimpleFC::AdvRemoveRule "Gait UDP discovery (UDP:30323)"
 
   # Firewall - add rules
-  SimpleFC::AdvAddRule "Gait incoming peers (TCP:30303)" ""  6 1 1 2147483647 1 "$INSTDIR\gait.exe" "" "" "AICHAIN" 30303 "" "" ""
-  SimpleFC::AdvAddRule "Gait outgoing peers (TCP:30303)" ""  6 2 1 2147483647 1 "$INSTDIR\gait.exe" "" "" "AICHAIN" "" 30303 "" ""
-  SimpleFC::AdvAddRule "Gait UDP discovery (UDP:30303)" "" 17 2 1 2147483647 1 "$INSTDIR\gait.exe" "" "" "AICHAIN" "" 30303 "" ""
+  SimpleFC::AdvAddRule "Gait incoming peers (TCP:30323)" ""  6 1 1 2147483647 1 "$INSTDIR\gait.exe" "" "" "AICHAIN" 30323 "" "" ""
+  SimpleFC::AdvAddRule "Gait outgoing peers (TCP:30323)" ""  6 2 1 2147483647 1 "$INSTDIR\gait.exe" "" "" "AICHAIN" "" 30323 "" ""
+  SimpleFC::AdvAddRule "Gait UDP discovery (UDP:30323)" "" 17 2 1 2147483647 1 "$INSTDIR\gait.exe" "" "" "AICHAIN" "" 30323 "" ""
 
   # Set default IPC endpoint (https://github.com/AICHAIN-CORE/EIPs/issues/147)
   ${EnvVarUpdate} $0 "ETHEREUM_SOCKET" "R" "HKLM" "\\.\pipe\gait.ipc"

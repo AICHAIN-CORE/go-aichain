@@ -8,7 +8,7 @@ RUN \
   apk del go git make gcc musl-dev linux-headers && \
   rm -rf /go-aichain && rm -rf /var/cache/apk/*
 
-EXPOSE 8545
-EXPOSE 30303
+EXPOSE 9523
+EXPOSE 30323
 
 ENTRYPOINT ["/gait"]

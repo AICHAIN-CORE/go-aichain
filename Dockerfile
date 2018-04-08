@@ -12,5 +12,5 @@ FROM alpine:latest
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /go-aichain/build/bin/gait /usr/local/bin/
 
-EXPOSE 8545 8546 30303 30303/udp 30304/udp
+EXPOSE 9523 9524 30323 30323/udp 30324/udp
 ENTRYPOINT ["gait"]

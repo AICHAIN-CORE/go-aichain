@@ -11,7 +11,7 @@ RUN \
   apt-get remove -y golang-1.9 git make gcc libc-dev && apt autoremove -y && apt-get clean && \
   rm -rf /go-aichain
 
-EXPOSE 8545
-EXPOSE 30303
+EXPOSE 9523
+EXPOSE 30323
 
 ENTRYPOINT ["/gait"]

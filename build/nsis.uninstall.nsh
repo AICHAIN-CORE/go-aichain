@@ -17,9 +17,9 @@ Section "Uninstall"
   rmDir "$SMPROGRAMS\${APPNAME}"
 
   # Firewall - remove rules if exists
-  SimpleFC::AdvRemoveRule "Gait incoming peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Gait outgoing peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Gait UDP discovery (UDP:30303)"
+  SimpleFC::AdvRemoveRule "Gait incoming peers (TCP:30323)"
+  SimpleFC::AdvRemoveRule "Gait outgoing peers (TCP:30323)"
+  SimpleFC::AdvRemoveRule "Gait UDP discovery (UDP:30323)"
 
   # Remove IPC endpoint (https://github.com/AICHAIN-CORE/EIPs/issues/147)
   ${un.EnvVarUpdate} $0 "ETHEREUM_SOCKET" "R" "HKLM" "\\.\pipe\gait.ipc"

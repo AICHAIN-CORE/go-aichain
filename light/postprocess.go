@@ -28,7 +28,6 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/ethdb"
 	"github.com/AICHAIN-CORE/go-aichain/log"
-	"github.com/AICHAIN-CORE/go-aichain/params"
 	"github.com/AICHAIN-CORE/go-aichain/rlp"
 	"github.com/AICHAIN-CORE/go-aichain/trie"
 )
@@ -75,8 +74,8 @@ var (
 
 // trustedCheckpoints associates each known checkpoint with the genesis hash of the chain it belongs to
 var trustedCheckpoints = map[common.Hash]trustedCheckpoint{
-	params.MainnetGenesisHash: mainnetCheckpoint,
-	params.TestnetGenesisHash: ropstenCheckpoint,
+	//	params.MainnetGenesisHash: mainnetCheckpoint,
+	//	params.TestnetGenesisHash: ropstenCheckpoint,
 }
 
 var (

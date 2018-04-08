@@ -18,13 +18,14 @@ package ethash
 
 import (
 	crand "crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
 	"runtime"
 	"sync"
 
-	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/log"
@@ -36,13 +37,10 @@ func (ethash *Ethash) Seal(chain consensus.ChainReader, block *types.Block, stop
 	// If we're running a fake PoW, simply return a 0 nonce immediately
 	if ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake {
 		header := block.Header()
-		header.Nonce, header.MixDigest = types.BlockNonce{}, common.Hash{}
+		header.Nonce = types.BlockNonce{}
 		return block.WithSeal(header), nil
 	}
-	// If we're running a shared PoW, delegate sealing to it
-	if ethash.shared != nil {
-		return ethash.shared.Seal(chain, block, stop)
-	}
+
 	// Create a runner and the multiple search threads it directs
 	abort := make(chan struct{})
 	found := make(chan *types.Block)
@@ -97,11 +95,9 @@ func (ethash *Ethash) Seal(chain consensus.ChainReader, block *types.Block, stop
 func (ethash *Ethash) mine(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
 	// Extract some data from the header
 	var (
-		header  = block.Header()
-		hash    = header.HashNoNonce().Bytes()
-		target  = new(big.Int).Div(maxUint256, header.Difficulty)
-		number  = header.Number.Uint64()
-		dataset = ethash.dataset(number)
+		header = block.Header()
+		hash   = header.HashNoNonce().Bytes()
+		target = new(big.Int).Div(maxUint256, header.Difficulty)
 	)
 	// Start generating random nonces until we abort or find a good one
 	var (
@@ -127,12 +123,13 @@ search:
 				attempts = 0
 			}
 			// Compute the PoW value of this nonce
-			digest, result := hashimotoFull(dataset.dataset, hash, nonce)
+			result := hashimotoFull(hash, nonce)
 			if new(big.Int).SetBytes(result).Cmp(target) <= 0 {
 				// Correct nonce found, create a new header with it
 				header = types.CopyHeader(header)
 				header.Nonce = types.EncodeNonce(nonce)
-				header.MixDigest = common.BytesToHash(digest)
+
+				fmt.Printf("Clement DEBUG: good block result=%s\n", hex.EncodeToString(result))
 
 				// Seal and return a block (if still needed)
 				select {
@@ -146,7 +143,4 @@ search:
 			nonce++
 		}
 	}
-	// Datasets are unmapped in a finalizer. Ensure that the dataset stays live
-	// during sealing so it's not unmapped while being read.
-	runtime.KeepAlive(dataset)
 }

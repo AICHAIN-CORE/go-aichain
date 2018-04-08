@@ -1,8 +1,22 @@
 ## Go AICHAIN
 
-Official golang implementation of the AICHAIN protocol based on go-ethereum.
+Official golang implementation of the AICHAIN protocol.
+
+[![API Reference](
+https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667
+)](https://godoc.org/github.com/AICHAIN-CORE/go-aichain)
+[![Go Report Card](https://goreportcard.com/badge/github.com/AICHAIN-CORE/go-aichain)](https://goreportcard.com/report/github.com/AICHAIN-CORE/go-aichain)
+[![Travis](https://travis-ci.org/aichain/go-aichain.svg?branch=master)](https://travis-ci.org/aichain/go-aichain)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/aichain/go-aichain?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
+Automated builds are available for stable releases and the unstable master branch.
+Binary archives are published at https://gait.aichain.org/downloads/.
 
 ## Building the source
+
+For prerequisites and detailed build instructions please read the
+[Installation Instructions](https://github.com/AICHAIN-CORE/go-aichain/wiki/Building-AICHAIN)
+on the wiki.
 
 Building gait requires both a Go (version 1.7 or later) and a C compiler.
 You can install them using your favourite package manager.
@@ -20,11 +34,21 @@ The go-aichain project comes with several wrappers/executables found in the `cmd
 
 | Command    | Description |
 |:----------:|-------------|
-| **`gait`** | Our main AICHAIN CLI client. It is the entry point into the AICHAIN network (main-, test- or private net), capable of running as a full node (default) archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the AICHAIN network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `gait --help` |
+| **`gait`** | Our main AICHAIN CLI client. It is the entry point into the AICHAIN network (main-, test- or private net), capable of running as a full node (default) archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the AICHAIN network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `gait --help` and the [CLI Wiki page](https://github.com/AICHAIN-CORE/go-aichain/wiki/Command-Line-Options) for command line options. |
+| `abigen` | Source code generator to convert AICHAIN contract definitions into easy to use, compile-time type-safe Go packages. It operates on plain [AICHAIN contract ABIs](https://github.com/AICHAIN-CORE/wiki/wiki/AICHAIN-Contract-ABI) with expanded functionality if the contract bytecode is also available. However it also accepts Solidity source files, making development much more streamlined. Please see our [Native DApps](https://github.com/AICHAIN-CORE/go-aichain/wiki/Native-DApps:-Go-bindings-to-AICHAIN-contracts) wiki page for details. |
 | `bootnode` | Stripped down version of our AICHAIN client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks. |
 | `evm` | Developer utility version of the EVM (AICHAIN Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode. Its purpose is to allow isolated, fine-grained debugging of EVM opcodes (e.g. `evm --code 60ff60ff --debug`). |
+| `gethrpctest` | Developer utility tool to support our [aichain/rpc-test](https://github.com/AICHAIN-CORE/rpc-tests) test suite which validates baseline conformity to the [AICHAIN JSON RPC](https://github.com/AICHAIN-CORE/wiki/wiki/JSON-RPC) specs. Please see the [test suite's readme](https://github.com/AICHAIN-CORE/rpc-tests/blob/master/README.md) for details. |
+| `rlpdump` | Developer utility tool to convert binary RLP ([Recursive Length Prefix](https://github.com/AICHAIN-CORE/wiki/wiki/RLP)) dumps (data encoding used by the AICHAIN protocol both network as well as consensus wise) to user friendlier hierarchical representation (e.g. `rlpdump --hex CE0183FFFFFFC4C304050583616263`). |
+| `swarm`    | swarm daemon and tools. This is the entrypoint for the swarm network. `swarm --help` for command line options and subcommands. See https://swarm-guide.readthedocs.io for swarm documentation. |
+| `puppeth`    | a CLI wizard that aids in creating a new AICHAIN network. |
 
 ## Running gait
+
+Going through all the possible command line flags is out of scope here (please consult our
+[CLI Wiki page](https://github.com/AICHAIN-CORE/go-aichain/wiki/Command-Line-Options)), but we've
+enumerated a few common parameter combos to get you up to speed quickly on how you can run your
+own Gait instance.
 
 ### Full node on the main AICHAIN network
 
@@ -42,7 +66,9 @@ This command will:
  * Start gait in fast sync mode (default, can be changed with the `--syncmode` flag), causing it to
    download more data in exchange for avoiding processing the entire history of the AICHAIN network,
    which is very CPU intensive.
-
+ * Start up Gait's built-in interactive [JavaScript console](https://github.com/AICHAIN-CORE/go-aichain/wiki/JavaScript-Console),
+   (via the trailing `console` subcommand) through which you can invoke all official [`web3` methods](https://github.com/AICHAIN-CORE/wiki/wiki/JavaScript-API)
+   as well as Gait's own [management APIs](https://github.com/AICHAIN-CORE/go-aichain/wiki/Management-APIs).
    This too is optional and if you leave it out you can always attach to an already running Gait instance
    with `gait attach`.
 
@@ -75,6 +101,10 @@ over between the main network and test network, you should make sure to always u
 for play-money and real-money. Unless you manually move accounts, Gait will by default correctly
 separate the two networks and will not make any accounts available between them.*
 
+### Full node on the Rinkeby test network
+
+The above test network is a cross client one based on the ethash proof-of-work consensus algorithm. As such, it has certain extra overhead and is more susceptible to reorganization attacks due to the network's low difficulty / security. Go AICHAIN also supports connecting to a proof-of-authority based test network called [*Rinkeby*](https://www.rinkeby.io) (operated by members of the community). This network is lighter, more secure, but is only supported by go-aichain.
+
 ```
 $ gait --rinkeby console
 ```
@@ -101,7 +131,7 @@ One of the quickest ways to get AICHAIN up and running on your machine is by usi
 
 ```
 docker run -d --name aichain-node -v /Users/alice/aichain:/root \
-           -p 8545:8545 -p 30303:30303 \
+           -p 9523:9523 -p 30323:30323 \
            aichain/client-go
 ```
 
@@ -113,7 +143,10 @@ Do not forget `--rpcaddr 0.0.0.0`, if you want to access RPC from other containe
 
 As a developer, sooner rather than later you'll want to start interacting with Gait and the AICHAIN
 network via your own programs and not manually through the console. To aid this, Gait has built in
-support for a JSON-RPC based APIs 
+support for a JSON-RPC based APIs ([standard APIs](https://github.com/AICHAIN-CORE/wiki/wiki/JSON-RPC) and
+[Gait specific APIs](https://github.com/AICHAIN-CORE/go-aichain/wiki/Management-APIs)). These can be
+exposed via HTTP, WebSockets and IPC (unix sockets on unix based platforms, and named pipes on Windows).
+
 The IPC interface is enabled by default and exposes all the APIs supported by Gait, whereas the HTTP
 and WS interfaces need to manually be enabled and only expose a subset of APIs due to security reasons.
 These can be turned on/off and configured as you'd expect.
@@ -122,12 +155,12 @@ HTTP based JSON-RPC API options:
 
   * `--rpc` Enable the HTTP-RPC server
   * `--rpcaddr` HTTP-RPC server listening interface (default: "localhost")
-  * `--rpcport` HTTP-RPC server listening port (default: 8545)
+  * `--rpcport` HTTP-RPC server listening port (default: 9523)
   * `--rpcapi` API's offered over the HTTP-RPC interface (default: "eth,net,web3")
   * `--rpccorsdomain` Comma separated list of domains from which to accept cross origin requests (browser enforced)
   * `--ws` Enable the WS-RPC server
   * `--wsaddr` WS-RPC server listening interface (default: "localhost")
-  * `--wsport` WS-RPC server listening port (default: 8546)
+  * `--wsport` WS-RPC server listening port (default: 9524)
   * `--wsapi` API's offered over the WS-RPC interface (default: "eth,net,web3")
   * `--wsorigins` Origins from which to accept websockets requests
   * `--ipcdisable` Disable the IPC-RPC server
@@ -203,7 +236,7 @@ $ bootnode --genkey=boot.key
 $ bootnode --nodekey=boot.key
 ```
 
-With the bootnode online, it will display an [`enode` URL]
+With the bootnode online, it will display an [`enode` URL](https://github.com/AICHAIN-CORE/wiki/wiki/enode-url-format)
 that other nodes can use to connect to it and exchange peer information. Make sure to replace the
 displayed IP address information (most probably `[::]`) with your externally accessible IP to get the
 actual `enode` URL.
@@ -226,6 +259,11 @@ need to configure a miner to process transactions and create new blocks for you.
 
 #### Running a private miner
 
+Mining on the public AICHAIN network is a complex task as it's only feasible using GPUs, requiring
+an OpenCL or CUDA enabled `ethminer` instance. For information on such a setup, please consult the
+[EtherMining subreddit](https://www.reddit.com/r/EtherMining/) and the [Genoil miner](https://github.com/Genoil/cpp-aichain)
+repository.
+
 In a private network setting however, a single CPU miner instance is more than enough for practical
 purposes as it can produce a stable stream of blocks at the correct intervals without needing heavy
 resources (consider running on a single thread, no need for multiple ones either). To start a Gait
@@ -239,6 +277,28 @@ Which will start mining blocks and transactions on a single CPU thread, creditin
 the account specified by `--etherbase`. You can further tune the mining by changing the default gas
 limit blocks converge to (`--targetgaslimit`) and the price transactions are accepted at (`--gasprice`).
 
+## Contribution
+
+Thank you for considering to help out with the source code! We welcome contributions from
+anyone on the internet, and are grateful for even the smallest of fixes!
+
+If you'd like to contribute to go-aichain, please fork, fix, commit and send a pull request
+for the maintainers to review and merge into the main code base. If you wish to submit more
+complex changes though, please check up with the core devs first on [our gitter channel](https://gitter.im/aichain/go-aichain)
+to ensure those changes are in line with the general philosophy of the project and/or get some
+early feedback which can make both your efforts much lighter as well as our review and merge
+procedures quick and simple.
+
+Please make sure your contributions adhere to our coding guidelines:
+
+ * Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
+ * Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
+ * Pull requests need to be based on and opened against the `master` branch.
+ * Commit messages should be prefixed with the package(s) they modify.
+   * E.g. "eth, rpc: make trace configs optional"
+
+Please see the [Developers' Guide](https://github.com/AICHAIN-CORE/go-aichain/wiki/Developers'-Guide)
+for more details on configuring your environment, managing project dependencies and testing procedures.
 
 ## License
 

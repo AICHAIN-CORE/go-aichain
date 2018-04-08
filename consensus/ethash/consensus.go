@@ -17,7 +17,6 @@
 package ethash
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -469,30 +468,12 @@ func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Head
 		}
 		return nil
 	}
-	// If we're running a shared PoW, delegate verification to it
-	if ethash.shared != nil {
-		return ethash.shared.VerifySeal(chain, header)
-	}
 	// Ensure that we have a valid difficulty for the block
 	if header.Difficulty.Sign() <= 0 {
 		return errInvalidDifficulty
 	}
 	// Recompute the digest and PoW value and verify against the header
-	number := header.Number.Uint64()
-
-	cache := ethash.cache(number)
-	size := datasetSize(number)
-	if ethash.config.PowMode == ModeTest {
-		size = 32 * 1024
-	}
-	digest, result := hashimotoLight(size, cache.cache, header.HashNoNonce().Bytes(), header.Nonce.Uint64())
-	// Caches are unmapped in a finalizer. Ensure that the cache stays live
-	// until after the call to hashimotoLight so it's not unmapped while being used.
-	runtime.KeepAlive(cache)
-
-	if !bytes.Equal(header.MixDigest[:], digest) {
-		return errInvalidMixDigest
-	}
+	result := hashimotoLight(header.HashNoNonce().Bytes(), header.Nonce.Uint64())
 	target := new(big.Int).Div(maxUint256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
 		return errInvalidPoW
@@ -537,6 +518,10 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	if config.IsByzantium(header.Number) {
 		blockReward = ByzantiumBlockReward
 	}
+	if config.IsCoinDelieverDone(header.Number) {
+		blockReward = big.NewInt(1)
+	}
+
 	// Accumulate the rewards for the miner and any included uncles
 	reward := new(big.Int).Set(blockReward)
 	r := new(big.Int)

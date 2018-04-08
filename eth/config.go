@@ -20,8 +20,6 @@ import (
 	"math/big"
 	"os"
 	"os/user"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
@@ -35,14 +33,8 @@ import (
 
 // DefaultConfig contains default settings for use on the AICHAIN main net.
 var DefaultConfig = Config{
-	SyncMode: downloader.FastSync,
-	Ethash: ethash.Config{
-		CacheDir:       "ethash",
-		CachesInMem:    2,
-		CachesOnDisk:   3,
-		DatasetsInMem:  1,
-		DatasetsOnDisk: 2,
-	},
+	SyncMode:      downloader.FullSync, // we use full sync as default!
+	Ethash:        ethash.Config{},
 	NetworkId:     1,
 	LightPeers:    100,
 	DatabaseCache: 768,
@@ -64,11 +56,7 @@ func init() {
 			home = user.HomeDir
 		}
 	}
-	if runtime.GOOS == "windows" {
-		DefaultConfig.Ethash.DatasetDir = filepath.Join(home, "AppData", "Ethash")
-	} else {
-		DefaultConfig.Ethash.DatasetDir = filepath.Join(home, ".ethash")
-	}
+	//if runtime.GOOS == "windows" {
 }
 
 //go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go

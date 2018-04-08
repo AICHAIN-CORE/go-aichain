@@ -144,7 +144,6 @@ func (t *BlockTest) genesis(config *params.ChainConfig) *core.Genesis {
 		GasLimit:   t.json.Genesis.GasLimit,
 		GasUsed:    t.json.Genesis.GasUsed,
 		Difficulty: t.json.Genesis.Difficulty,
-		Mixhash:    t.json.Genesis.MixHash,
 		Coinbase:   t.json.Genesis.Coinbase,
 		Alloc:      t.json.Pre,
 	}
@@ -203,9 +202,6 @@ func validateHeader(h *btHeader, h2 *types.Header) error {
 	}
 	if h.Coinbase != h2.Coinbase {
 		return fmt.Errorf("Coinbase: want: %x have: %x", h.Coinbase, h2.Coinbase)
-	}
-	if h.MixHash != h2.MixDigest {
-		return fmt.Errorf("MixHash: want: %x have: %x", h.MixHash, h2.MixDigest)
 	}
 	if h.Nonce != h2.Nonce {
 		return fmt.Errorf("Nonce: want: %x have: %x", h.Nonce, h2.Nonce)

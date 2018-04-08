@@ -18,6 +18,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"runtime"
@@ -30,6 +31,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/console"
+	"github.com/AICHAIN-CORE/go-aichain/crypto/lyra2dc"
 	"github.com/AICHAIN-CORE/go-aichain/eth"
 	"github.com/AICHAIN-CORE/go-aichain/ethclient"
 	"github.com/AICHAIN-CORE/go-aichain/internal/debug"
@@ -66,12 +68,6 @@ var (
 		utils.DashboardPortFlag,
 		utils.DashboardRefreshFlag,
 		utils.DashboardAssetsFlag,
-		utils.EthashCacheDirFlag,
-		utils.EthashCachesInMemoryFlag,
-		utils.EthashCachesOnDiskFlag,
-		utils.EthashDatasetDirFlag,
-		utils.EthashDatasetsInMemoryFlag,
-		utils.EthashDatasetsOnDiskFlag,
 		utils.TxPoolNoLocalsFlag,
 		utils.TxPoolJournalFlag,
 		utils.TxPoolRejournalFlag,
@@ -169,8 +165,6 @@ func init() {
 		attachCommand,
 		javascriptCommand,
 		// See misccmd.go:
-		makecacheCommand,
-		makedagCommand,
 		versionCommand,
 		bugCommand,
 		licenseCommand,
@@ -279,6 +273,16 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			}
 		}
 	}()
+
+	log.Info("Clement DEBUG: TEST gait!")
+	testmsg := "Copyright 2013-2017  go-aichain Authors"
+	var testdata []byte = []byte(testmsg)
+	testsig, errTest := lyra2dc.Do_lyra2DC(testdata)
+	if errTest == nil {
+		fmt.Printf("Clement DEBUG: TEST hash len=%d\n", len(testsig))
+		fmt.Printf("Clement DEBUG: TEST hash=%s\n", hex.EncodeToString(testsig))
+	}
+
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full AICHAIN node is running
