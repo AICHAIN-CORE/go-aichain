@@ -101,14 +101,6 @@ over between the main network and test network, you should make sure to always u
 for play-money and real-money. Unless you manually move accounts, Gait will by default correctly
 separate the two networks and will not make any accounts available between them.*
 
-### Full node on the Rinkeby test network
-
-The above test network is a cross client one based on the ethash proof-of-work consensus algorithm. As such, it has certain extra overhead and is more susceptible to reorganization attacks due to the network's low difficulty / security. Go AICHAIN also supports connecting to a proof-of-authority based test network called [*Rinkeby*](https://www.rinkeby.io) (operated by members of the community). This network is lighter, more secure, but is only supported by go-aichain.
-
-```
-$ gait --rinkeby console
-```
-
 ### Configuration
 
 As an alternative to passing the numerous flags to the `gait` binary, you can also pass a configuration file via:
@@ -276,29 +268,6 @@ $ gait <usual-flags> --mine --minerthreads=1 --etherbase=0x000000000000000000000
 Which will start mining blocks and transactions on a single CPU thread, crediting all proceedings to
 the account specified by `--etherbase`. You can further tune the mining by changing the default gas
 limit blocks converge to (`--targetgaslimit`) and the price transactions are accepted at (`--gasprice`).
-
-## Contribution
-
-Thank you for considering to help out with the source code! We welcome contributions from
-anyone on the internet, and are grateful for even the smallest of fixes!
-
-If you'd like to contribute to go-aichain, please fork, fix, commit and send a pull request
-for the maintainers to review and merge into the main code base. If you wish to submit more
-complex changes though, please check up with the core devs first on [our gitter channel](https://gitter.im/aichain/go-aichain)
-to ensure those changes are in line with the general philosophy of the project and/or get some
-early feedback which can make both your efforts much lighter as well as our review and merge
-procedures quick and simple.
-
-Please make sure your contributions adhere to our coding guidelines:
-
- * Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
- * Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
- * Pull requests need to be based on and opened against the `master` branch.
- * Commit messages should be prefixed with the package(s) they modify.
-   * E.g. "eth, rpc: make trace configs optional"
-
-Please see the [Developers' Guide](https://github.com/AICHAIN-CORE/go-aichain/wiki/Developers'-Guide)
-for more details on configuring your environment, managing project dependencies and testing procedures.
 
 ## License
 
