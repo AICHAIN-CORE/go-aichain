@@ -18,8 +18,8 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 	"runtime"
 	"sort"
@@ -31,7 +31,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/console"
-	"github.com/AICHAIN-CORE/go-aichain/crypto/lyra2dc"
+	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/eth"
 	"github.com/AICHAIN-CORE/go-aichain/ethclient"
 	"github.com/AICHAIN-CORE/go-aichain/internal/debug"
@@ -93,6 +93,7 @@ var (
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
 		utils.EtherbaseFlag,
+		utils.PassphraseFlag,
 		utils.GasPriceFlag,
 		utils.MinerThreadsFlag,
 		utils.MiningEnabledFlag,
@@ -199,6 +200,7 @@ func init() {
 }
 
 func main() {
+	fmt.Println(os.Args)
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -274,15 +276,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}()
 
-	log.Info("Clement DEBUG: TEST gait!")
-	testmsg := "Copyright 2013-2017  go-aichain Authors"
-	var testdata []byte = []byte(testmsg)
-	testsig, errTest := lyra2dc.Do_lyra2DC(testdata)
-	if errTest == nil {
-		fmt.Printf("Clement DEBUG: TEST hash len=%d\n", len(testsig))
-		fmt.Printf("Clement DEBUG: TEST hash=%s\n", hex.EncodeToString(testsig))
-	}
-
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full AICHAIN node is running
@@ -293,6 +286,8 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		if err := stack.Service(&aichain); err != nil {
 			utils.Fatalf("AICHAIN service not running: %v", err)
 		}
+
+		aichain.MyNodeServer = stack.Server()
 		// Use a reduced number of threads if requested
 		if threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name); threads > 0 {
 			type threaded interface {
@@ -302,6 +297,54 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 				th.SetThreads(threads)
 			}
 		}
+
+		stateDb, err := aichain.BlockChain().StateAt(aichain.BlockChain().CurrentBlock().Root())
+		if err == nil {
+			coinbase, err := aichain.Etherbase()
+			if err == nil {
+				balance := stateDb.GetBalance(coinbase)
+				if !aichain.BlockChain().Config().CheckMinerAccountAit(balance) {
+					utils.Fatalf("Not enough AIT for the miner account, %s AIT needed, balance of current miner account: %s AIT.\n", aichain.BlockChain().Config().AitNeedForMinerAccount().Text(10), balance.Div(balance, big.NewInt(1e+18)).Text(10))
+				}
+			}
+		} else {
+			utils.Fatalf("get coinbase balance error: %v", err)
+		}
+
+		passphrase := ctx.GlobalString(utils.PassphraseFlag.Name)
+
+		if passphrase == "" {
+			utils.Fatalf("the passphrase of the miner account must set")
+		}
+		//checks miner account.
+		eb, err := aichain.Etherbase()
+		if err != nil || eb == (common.Address{}) {
+			utils.Fatalf("the etherbase of the miner account must set: %v", err)
+		}
+
+		account := accounts.Account{Address: eb}
+		wallet, err := aichain.AccountManager().Find(account)
+		if err != nil {
+			utils.Fatalf("Error to find miner account in keystore: %v", err)
+			return
+		}
+		hash := crypto.Keccak256([]byte("data to sign"))
+		sig, err := wallet.SignHashWithPassphrase(account, passphrase, hash)
+		if err != nil {
+			utils.Fatalf("Error to sign using miner account: %v", err)
+		}
+
+		// if it is!  need verify the signature : header.SigData + header.coinbase + header + ParentHash
+		recoveredPubkey, err := crypto.SigToPub(hash, sig)
+		if err != nil || recoveredPubkey == nil {
+			utils.Fatalf("Get public key from signature error: %v", err)
+		}
+		recoveredAddress := crypto.PubkeyToAddress(*recoveredPubkey)
+		if eb != recoveredAddress {
+			utils.Fatalf("Verify public key error")
+		}
+
+		aichain.SetEtherbasePassphrase(passphrase)
 		// Set the gas price to the limits from the CLI and start mining
 		aichain.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
 		if err := aichain.StartMining(true); err != nil {
