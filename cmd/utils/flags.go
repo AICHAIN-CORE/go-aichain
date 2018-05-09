@@ -308,6 +308,11 @@ var (
 		Usage: "Public address for block mining rewards (default = first account created)",
 		Value: "0",
 	}
+	PassphraseFlag = cli.StringFlag{
+		Name:  "passphrase",
+		Usage: "passphrase for account of etherbase",
+		Value: "",
+	}
 	GasPriceFlag = BigFlag{
 		Name:  "gasprice",
 		Usage: "Minimal gas price to accept for mining a transactions",
@@ -579,7 +584,7 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 		urls = params.RinkebyBootnodes
 	case cfg.BootstrapNodes != nil:
 		for _, node := range cfg.BootstrapNodes {
-			fmt.Printf("Clement DEBUG: already has bootnode ip=%s udpport=%d tcpport=%d\n", node.IP.String(), node.UDP, node.TCP)
+			fmt.Printf("bootnode ip=%s udpport=%d tcpport=%d\n", node.IP.String(), node.UDP, node.TCP)
 		}
 		return // already set, don't apply defaults.
 	}
@@ -592,7 +597,7 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 			continue
 		}
 
-		fmt.Printf("Clement DEBUG: bootnode ip=%s udpport=%d tcpport=%d\n", node.IP.String(), node.UDP, node.TCP)
+		fmt.Printf("bootnode ip=%s udpport=%d tcpport=%d\n", node.IP.String(), node.UDP, node.TCP)
 		cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)
 	}
 }
@@ -845,17 +850,6 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 		cfg.ListenAddr = ":0"
 		cfg.NoDiscovery = true
 		cfg.DiscoveryV5 = false
-	}
-	if cfg.NoDiscovery {
-		fmt.Printf("Clement DEBUG: cfg.NoDiscovery=true\n")
-	} else {
-		fmt.Printf("Clement DEBUG: cfg.NoDiscovery=false\n")
-	}
-
-	if cfg.DiscoveryV5 {
-		fmt.Printf("Clement DEBUG: cfg.DiscoveryV5=true\n")
-	} else {
-		fmt.Printf("Clement DEBUG: cfg.DiscoveryV5=false\n")
 	}
 }
 
