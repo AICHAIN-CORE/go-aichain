@@ -44,6 +44,13 @@ func (b Bytes) MarshalText() ([]byte, error) {
 	return result, nil
 }
 
+func (b Bytes) MarshalTextAIT() ([]byte, error) {
+	result := make([]byte, len(b)*2+2)
+	copy(result, `ai`)
+	hex.Encode(result[2:], b)
+	return result, nil
+}
+
 // UnmarshalJSON implements json.Unmarshaler.
 func (b *Bytes) UnmarshalJSON(input []byte) error {
 	if !isString(input) {
@@ -82,6 +89,13 @@ func UnmarshalFixedJSON(typ reflect.Type, input, out []byte) error {
 	return wrapTypeError(UnmarshalFixedText(typ.String(), input[1:len(input)-1], out), typ)
 }
 
+func UnmarshalFixedJSONAIT(typ reflect.Type, input, out []byte) error {
+	if !isString(input) {
+		return errNonString(typ)
+	}
+	return wrapTypeError(UnmarshalFixedTextAIT(typ.String(), input[1:len(input)-1], out), typ)
+}
+
 // UnmarshalFixedText decodes the input as a string with 0x prefix. The length of out
 // determines the required input length. This function is commonly used to implement the
 // UnmarshalText method for fixed-size types.
@@ -103,11 +117,47 @@ func UnmarshalFixedText(typname string, input, out []byte) error {
 	return nil
 }
 
+func UnmarshalFixedTextAIT(typname string, input, out []byte) error {
+	raw, err := checkTextAIT(input, true)
+	if err != nil {
+		return err
+	}
+	if len(raw)/2 != len(out) {
+		return fmt.Errorf("hex string has length %d, want %d for %s", len(raw), len(out)*2, typname)
+	}
+	// Pre-verify syntax before modifying out.
+	for _, b := range raw {
+		if decodeNibble(b) == badNibble {
+			return ErrSyntax
+		}
+	}
+	hex.Decode(out, raw)
+	return nil
+}
+
 // UnmarshalFixedUnprefixedText decodes the input as a string with optional 0x prefix. The
 // length of out determines the required input length. This function is commonly used to
 // implement the UnmarshalText method for fixed-size types.
 func UnmarshalFixedUnprefixedText(typname string, input, out []byte) error {
 	raw, err := checkText(input, false)
+	if err != nil {
+		return err
+	}
+	if len(raw)/2 != len(out) {
+		return fmt.Errorf("hex string has length %d, want %d for %s", len(raw), len(out)*2, typname)
+	}
+	// Pre-verify syntax before modifying out.
+	for _, b := range raw {
+		if decodeNibble(b) == badNibble {
+			return ErrSyntax
+		}
+	}
+	hex.Decode(out, raw)
+	return nil
+}
+
+func UnmarshalFixedUnprefixedTextAIT(typname string, input, out []byte) error {
+	raw, err := checkTextAIT(input, false)
 	if err != nil {
 		return err
 	}
@@ -277,6 +327,10 @@ func bytesHave0xPrefix(input []byte) bool {
 	return len(input) >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X')
 }
 
+func bytesHaveAIPrefix(input []byte) bool {
+	return len(input) >= 2 && (input[0] == 'a' || input[0] == 'A') && (input[1] == 'i' || input[1] == 'I')
+}
+
 func checkText(input []byte, wantPrefix bool) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, nil // empty strings are allowed
@@ -292,11 +346,26 @@ func checkText(input []byte, wantPrefix bool) ([]byte, error) {
 	return input, nil
 }
 
+func checkTextAIT(input []byte, wantPrefix bool) ([]byte, error) {
+	if len(input) == 0 {
+		return nil, nil // empty strings are allowed
+	}
+	if bytesHaveAIPrefix(input) || bytesHave0xPrefix(input) {
+		input = input[2:]
+	} else if wantPrefix {
+		return nil, ErrMissingPrefix
+	}
+	if len(input)%2 != 0 {
+		return nil, ErrOddLength
+	}
+	return input, nil
+}
+
 func checkNumberText(input []byte) (raw []byte, err error) {
 	if len(input) == 0 {
 		return nil, nil // empty strings are allowed
 	}
-	if !bytesHave0xPrefix(input) {
+	if (!bytesHave0xPrefix(input)) && (!bytesHaveAIPrefix(input)) {
 		return nil, ErrMissingPrefix
 	}
 	input = input[2:]
