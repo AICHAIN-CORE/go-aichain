@@ -32,6 +32,8 @@ func FromHex(s string) []byte {
 	if len(s) > 1 {
 		if s[0:2] == "0x" || s[0:2] == "0X" {
 			s = s[2:]
+		} else if s[0:2] == "ai" || s[0:2] == "AI" || s[0:2] == "aI" || s[0:2] == "Ai" {
+			s = s[2:]
 		}
 	}
 	if len(s)%2 == 1 {
@@ -55,6 +57,10 @@ func CopyBytes(b []byte) (copiedBytes []byte) {
 
 func hasHexPrefix(str string) bool {
 	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
+}
+
+func hasAITPrefix(str string) bool {
+	return len(str) >= 2 && (str[0] == 'A' || str[0] == 'a') && (str[1] == 'I' || str[1] == 'i')
 }
 
 func isHexCharacter(c byte) bool {
