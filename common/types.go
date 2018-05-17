@@ -150,7 +150,7 @@ func HexToAddress(s string) Address    { return BytesToAddress(FromHex(s)) }
 // IsHexAddress verifies whether a string can represent a valid hex-encoded
 // AICHAIN address or not.
 func IsHexAddress(s string) bool {
-	if hasHexPrefix(s) {
+	if hasAITPrefix(s) { // change to check AI or ai as prefix  //orignal: hasHexPrefix
 		s = s[2:]
 	}
 	return len(s) == 2*AddressLength && isHex(s)
@@ -181,7 +181,8 @@ func (a Address) Hex() string {
 			result[i] -= 32
 		}
 	}
-	return "0x" + string(result)
+	// return "0x" + string(result)
+	return "ai" + string(result) // change to use AI as prefix
 }
 
 // String implements the stringer interface and is used also by the logger.
@@ -215,17 +216,17 @@ func (a *Address) Set(other Address) {
 
 // MarshalText returns the hex representation of a.
 func (a Address) MarshalText() ([]byte, error) {
-	return hexutil.Bytes(a[:]).MarshalText()
+	return hexutil.Bytes(a[:]).MarshalTextAIT()
 }
 
 // UnmarshalText parses a hash in hex syntax.
 func (a *Address) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedText("Address", input, a[:])
+	return hexutil.UnmarshalFixedTextAIT("Address", input, a[:])
 }
 
 // UnmarshalJSON parses a hash in hex syntax.
 func (a *Address) UnmarshalJSON(input []byte) error {
-	return hexutil.UnmarshalFixedJSON(addressT, input, a[:])
+	return hexutil.UnmarshalFixedJSONAIT(addressT, input, a[:])
 }
 
 // UnprefixedHash allows marshaling an Address without 0x prefix.
@@ -233,7 +234,7 @@ type UnprefixedAddress Address
 
 // UnmarshalText decodes the address from hex. The 0x prefix is optional.
 func (a *UnprefixedAddress) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedAddress", input, a[:])
+	return hexutil.UnmarshalFixedUnprefixedTextAIT("UnprefixedAddress", input, a[:])
 }
 
 // MarshalText encodes the address as hex.
