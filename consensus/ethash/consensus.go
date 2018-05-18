@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
@@ -29,6 +30,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/consensus/misc"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
+	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/params"
 	set "gopkg.in/fatih/set.v0"
 )
@@ -37,7 +39,7 @@ import (
 var (
 	FrontierBlockReward    *big.Int = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
 	ByzantiumBlockReward   *big.Int = big.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
-	maxUncles                       = 2                 // Maximum number of uncles allowed in a single block
+	maxUncles                       = 0                 // Maximum number of uncles allowed in a single block
 	allowedFutureBlockTime          = 15 * time.Second  // Max time from current time allowed for blocks, before they're considered future blocks
 )
 
@@ -224,6 +226,20 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
 	}
+
+	// check header.coinbase is genesis address or not?
+	if uint64(len(header.SigData)) > params.MaximumSigDataSize {
+		return fmt.Errorf("sig-data too long: %d > %d", len(header.SigData), params.MaximumSigDataSize)
+	}
+	// if it is!  need verify the signature : header.SigData + header.coinbase + header + ParentHash
+	recoveredPubkey, err := crypto.SigToPub(header.HashSignatureData().Bytes(), header.SigData)
+	if err != nil || recoveredPubkey == nil {
+		return fmt.Errorf("Get public key from signature error")
+	}
+	recoveredAddress := crypto.PubkeyToAddress(*recoveredPubkey)
+	if header.Coinbase != recoveredAddress {
+		return fmt.Errorf("Verify public key error")
+	}
 	// Verify the header's timestamp
 	if uncle {
 		if header.Time.Cmp(math.MaxBig256) > 0 {
@@ -241,7 +257,10 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 	expected := ethash.CalcDifficulty(chain, header.Time.Uint64(), parent)
 
 	if expected.Cmp(header.Difficulty) != 0 {
-		return fmt.Errorf("invalid difficulty: have %v, want %v", header.Difficulty, expected)
+		// need check header.coinbase must be eault to "ai7ac9cffc4a903696d1438f925a142aad6d51b8c4" as in function: Prepare
+		if header.Difficulty.Cmp(chain.Config().DefaultDifficaulty()) != 0 || strings.Compare(strings.ToLower(header.Coinbase.Hex()), chain.Config().DefaultCoinbase()) != 0 {
+			return fmt.Errorf("invalid difficulty: have %v, want %v", header.Difficulty, expected)
+		}
 	}
 	// Verify that the gas limit is <= 2^63-1
 	cap := uint64(0x7fffffffffffffff)
@@ -354,24 +373,27 @@ func calcDifficultyByzantium(time uint64, parent *types.Header) *big.Int {
 	if x.Cmp(params.MinimumDifficulty) < 0 {
 		x.Set(params.MinimumDifficulty)
 	}
-	// calculate a fake block number for the ice-age delay:
-	//   https://github.com/AICHAIN-CORE/EIPs/pull/669
-	//   fake_block_number = min(0, block.number - 3_000_000
-	fakeBlockNumber := new(big.Int)
-	if parent.Number.Cmp(big2999999) >= 0 {
-		fakeBlockNumber = fakeBlockNumber.Sub(parent.Number, big2999999) // Note, parent is 1 less than the actual block number
-	}
-	// for the exponential factor
-	periodCount := fakeBlockNumber
-	periodCount.Div(periodCount, expDiffPeriod)
 
-	// the exponential factor, commonly referred to as "the bomb"
-	// diff = diff + 2^(periodCount - 2)
-	if periodCount.Cmp(big1) > 0 {
-		y.Sub(periodCount, big2)
-		y.Exp(big2, y, nil)
-		x.Add(x, y)
-	}
+	/*
+		// calculate a fake block number for the ice-age delay:
+		//   https://github.com/AICHAIN-CORE/EIPs/pull/669
+		//   fake_block_number = min(0, block.number - 3_000_000
+		fakeBlockNumber := new(big.Int)
+		if parent.Number.Cmp(big2999999) >= 0 {
+			fakeBlockNumber = fakeBlockNumber.Sub(parent.Number, big2999999) // Note, parent is 1 less than the actual block number
+		}
+		// for the exponential factor
+		periodCount := fakeBlockNumber
+		periodCount.Div(periodCount, expDiffPeriod)
+
+		// the exponential factor, commonly referred to as "the bomb"
+		// diff = diff + 2^(periodCount - 2)
+		if periodCount.Cmp(big1) > 0 {
+			y.Sub(periodCount, big2)
+			y.Exp(big2, y, nil)
+			x.Add(x, y)
+		}
+	*/
 	return x
 }
 
@@ -489,6 +511,10 @@ func (ethash *Ethash) Prepare(chain consensus.ChainReader, header *types.Header)
 		return consensus.ErrUnknownAncestor
 	}
 	header.Difficulty = ethash.CalcDifficulty(chain, header.Time.Uint64(), parent)
+
+	if header.Difficulty.Cmp(chain.Config().DefaultMaxDifficaulty()) > 0 && strings.Compare(strings.ToLower(header.Coinbase.Hex()), chain.Config().DefaultCoinbase()) == 0 {
+		header.Difficulty = chain.Config().DefaultDifficaulty()
+	}
 	return nil
 }
 
@@ -530,9 +556,16 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		r.Sub(r, header.Number)
 		r.Mul(r, blockReward)
 		r.Div(r, big8)
+
+		if config.IsCoinDelieverDone(header.Number) {
+			r = big.NewInt(1)
+		}
 		state.AddBalance(uncle.Coinbase, r)
 
 		r.Div(blockReward, big32)
+		if config.IsCoinDelieverDone(header.Number) {
+			blockReward = big.NewInt(1)
+		}
 		reward.Add(reward, r)
 	}
 	state.AddBalance(header.Coinbase, reward)
