@@ -70,6 +70,16 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	if hash := types.DeriveSha(block.Transactions()); hash != header.TxHash {
 		return fmt.Errorf("transaction root hash mismatch: have %x, want %x", hash, header.TxHash)
 	}
+
+	stateDb, err := v.bc.StateAt(v.bc.CurrentBlock().Root())
+	if err == nil {
+		balance := stateDb.GetBalance(block.Coinbase())
+		if !v.bc.Config().CheckMinerAccountAit(balance) {
+			return fmt.Errorf("Not enough AIT for the miner account")
+		}
+	} else {
+		//error handling
+	}
 	return nil
 }
 
@@ -98,6 +108,12 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 	if root := statedb.IntermediateRoot(v.config.IsEIP158(header.Number)); header.Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", header.Root, root)
 	}
+
+	balance := statedb.GetBalance(block.Coinbase())
+	if !v.bc.Config().CheckMinerAccountAit(balance) {
+		return fmt.Errorf("Not enough AIT for the miner account")
+	}
+
 	return nil
 }
 
