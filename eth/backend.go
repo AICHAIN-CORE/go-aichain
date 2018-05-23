@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -78,6 +79,7 @@ type AICHAIN struct {
 	eventMux       *event.TypeMux
 	engine         consensus.Engine
 	accountManager *accounts.Manager
+	MyNodeServer   *p2p.Server
 
 	bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
@@ -324,12 +326,29 @@ func (self *AICHAIN) SetEtherbase(etherbase common.Address) {
 	self.miner.SetEtherbase(etherbase)
 }
 
+// set in js console via admin interface or wrapper from cli flags
+func (self *AICHAIN) SetEtherbasePassphrase(passphrase string) {
+	self.miner.SetEtherbasePassphrase(passphrase)
+}
+
 func (s *AICHAIN) StartMining(local bool) error {
 	eb, err := s.Etherbase()
 	if err != nil {
 		log.Error("Cannot start mining without etherbase", "err", err)
 		return fmt.Errorf("etherbase missing: %v", err)
 	}
+
+	stateDb, err := s.BlockChain().StateAt(s.blockchain.CurrentBlock().Root())
+	if err == nil {
+		balance := stateDb.GetBalance(eb)
+		if !s.BlockChain().Config().CheckMinerAccountAit(balance) {
+			return fmt.Errorf("Not enough AIT for the miner account, %s AIT needed, balance of current miner account: %s AIT.\n", s.BlockChain().Config().AitNeedForMinerAccount().Text(10), balance.Div(balance, big.NewInt(1e+18)).Text(10))
+		}
+	} else {
+		log.Error("get coinbase balance error\n", "err", err)
+		os.Exit(1)
+	}
+
 	if clique, ok := s.engine.(*clique.Clique); ok {
 		wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
 		if wallet == nil || err != nil {
@@ -363,6 +382,7 @@ func (s *AICHAIN) IsListening() bool                  { return true } // Always 
 func (s *AICHAIN) EthVersion() int                    { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *AICHAIN) NetVersion() uint64                 { return s.networkId }
 func (s *AICHAIN) Downloader() *downloader.Downloader { return s.protocolManager.downloader }
+func (s *AICHAIN) NodeServer() *p2p.Server            { return s.MyNodeServer }
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
