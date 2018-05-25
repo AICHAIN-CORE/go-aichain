@@ -18,8 +18,6 @@ package ethash
 
 import (
 	crand "crypto/rand"
-	"encoding/hex"
-	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
@@ -128,8 +126,6 @@ search:
 				// Correct nonce found, create a new header with it
 				header = types.CopyHeader(header)
 				header.Nonce = types.EncodeNonce(nonce)
-
-				fmt.Printf("Clement DEBUG: good block result=%s\n", hex.EncodeToString(result))
 
 				// Seal and return a block (if still needed)
 				select {
