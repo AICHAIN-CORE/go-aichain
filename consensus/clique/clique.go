@@ -160,6 +160,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.GasUsed,
 		header.Time,
 		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
+		header.SigData,
 		header.Nonce,
 	})
 	hasher.Sum(hash[:0])
@@ -533,6 +534,9 @@ func (c *Clique) Prepare(chain consensus.ChainReader, header *types.Header) erro
 	}
 	// Set the correct difficulty
 	header.Difficulty = CalcDifficulty(snap, c.signer)
+	if header.Difficulty.Cmp(big.NewInt(1048576*4)) > 0 {
+		header.Difficulty = big.NewInt(1048576)
+	}
 
 	// Ensure the extra data has all it's components
 	if len(header.Extra) < extraVanity {
