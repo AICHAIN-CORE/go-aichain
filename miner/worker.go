@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
 	"github.com/AICHAIN-CORE/go-aichain/consensus/misc"
@@ -111,8 +113,9 @@ type worker struct {
 	proc    core.Validator
 	chainDb ethdb.Database
 
-	coinbase common.Address
-	extra    []byte
+	coinbase   common.Address
+	extra      []byte
+	passphrase string
 
 	currentMu sync.Mutex
 	current   *Work
@@ -164,6 +167,12 @@ func (self *worker) setEtherbase(addr common.Address) {
 	self.coinbase = addr
 }
 
+func (self *worker) SetEtherbasePassphrase(passphrase string) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.passphrase = passphrase
+}
+
 func (self *worker) setExtra(extra []byte) {
 	self.mu.Lock()
 	defer self.mu.Unlock()
@@ -203,6 +212,18 @@ func (self *worker) pendingBlock() *types.Block {
 func (self *worker) start() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
+
+	stateDb, err := self.eth.BlockChain().StateAt(self.eth.BlockChain().CurrentBlock().Root())
+	if err == nil {
+		balance := stateDb.GetBalance(self.coinbase)
+		if !self.eth.BlockChain().Config().CheckMinerAccountAit(balance) {
+			fmt.Printf("Not enough AIT for the miner account, %s AIT needed, balance of current miner account: %s AIT.\n", self.eth.BlockChain().Config().AitNeedForMinerAccount().Text(10), balance.Div(balance, big.NewInt(1e+18)).Text(10))
+			os.Exit(1)
+		}
+	} else {
+		log.Error("get coinbase balance error", "err\n", err)
+		os.Exit(1)
+	}
 
 	atomic.StoreInt32(&self.mining, 1)
 
@@ -478,8 +499,28 @@ func (self *worker) commitNewWork() {
 	for _, hash := range badUncles {
 		delete(self.possibleUncles, hash)
 	}
+	if self.coinbase != (common.Address{}) {
+		balance := work.state.GetBalance(self.coinbase)
+		if !self.eth.BlockChain().Config().CheckMinerAccountAit(balance) {
+			fmt.Printf("Not enough AIT for the miner account, %s AIT needed, balance of current miner account: %s AIT.\n", self.eth.BlockChain().Config().AitNeedForMinerAccount().Text(10), balance.Div(balance, big.NewInt(1e+18)).Text(10))
+			os.Exit(1)
+		}
+
+		account := accounts.Account{Address: self.coinbase}
+		wallet, err := self.eth.AccountManager().Find(account)
+		if err != nil {
+			log.Error("Error to find miner account in keystore", "err", err)
+			return
+		}
+		header.SigData, err = wallet.SignHashWithPassphrase(account, self.passphrase, header.HashSignatureData().Bytes())
+		if err != nil {
+			log.Error("Error to sign block header", "err", err)
+			return
+		}
+	}
 	// Create the new block to seal with the consensus engine
-	if work.Block, err = self.engine.Finalize(self.chain, header, work.state, work.txs, uncles, work.receipts); err != nil {
+	//No uncle support
+	if work.Block, err = self.engine.Finalize(self.chain, header, work.state, work.txs, nil, work.receipts); err != nil {
 		log.Error("Failed to finalize block for sealing", "err", err)
 		return
 	}
