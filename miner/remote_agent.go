@@ -134,7 +134,7 @@ func (a *RemoteAgent) GetWork() ([3]string, error) {
 // SubmitWork tries to inject a pow solution into the remote agent, returning
 // whether the solution was accepted or not (not can be both a bad pow as well as
 // any other error, like no work pending).
-func (a *RemoteAgent) SubmitWork(nonce types.BlockNonce, mixDigest, hash common.Hash) bool {
+func (a *RemoteAgent) SubmitWork(nonce types.BlockNonce, hash common.Hash) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
