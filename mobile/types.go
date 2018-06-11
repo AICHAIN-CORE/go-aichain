@@ -194,8 +194,9 @@ func (b *Block) GetTime() int64         { return b.block.Time().Int64() }
 func (b *Block) GetExtra() []byte       { return b.block.Extra() }
 func (b *Block) GetNonce() int64        { return int64(b.block.Nonce()) }
 
-func (b *Block) GetHash() *Hash        { return &Hash{b.block.Hash()} }
-func (b *Block) GetHashNoNonce() *Hash { return &Hash{b.block.HashNoNonce()} }
+func (b *Block) GetHash() *Hash              { return &Hash{b.block.Hash()} }
+func (b *Block) GetHashNoNonce() *Hash       { return &Hash{b.block.HashNoNonce()} }
+func (b *Block) GetHashSignatureData() *Hash { return &Hash{b.block.HashSignatureData()} }
 
 func (b *Block) GetHeader() *Header             { return &Header{b.block.Header()} }
 func (b *Block) GetUncles() *Headers            { return &Headers{b.block.Uncles()} }
