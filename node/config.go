@@ -166,10 +166,10 @@ func (c *Config) IPCEndpoint() string {
 	}
 	// Resolve names into the data directory full paths otherwise
 	if filepath.Base(c.IPCPath) == c.IPCPath {
-		if c.DataDir == "" {
+		if DefaultDataDir() == "" {
 			return filepath.Join(os.TempDir(), c.IPCPath)
 		}
-		return filepath.Join(c.DataDir, c.IPCPath)
+		return filepath.Join(DefaultDataDir(), c.IPCPath)
 	}
 	return c.IPCPath
 }
