@@ -50,6 +50,7 @@ type Genesis struct {
 	ExtraData  []byte              `json:"extraData"`
 	GasLimit   uint64              `json:"gasLimit"   gencodec:"required"`
 	Difficulty *big.Int            `json:"difficulty" gencodec:"required"`
+	SigData    []byte              `json:"sigData"`
 	Coinbase   common.Address      `json:"coinbase"`
 	Alloc      GenesisAlloc        `json:"alloc"      gencodec:"required"`
 
@@ -159,7 +160,7 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		if genesis == nil {
 			log.Info("Writing default main-net genesis block")
 			genesis = DefaultGenesisBlock()
-			fmt.Printf("Clement DEBUG: mainnet genesis hash=%s\n", DefaultGenesisBlock().ToBlock(nil).Hash().Hex())
+			fmt.Printf("mainnet genesis hash=%s\n", DefaultGenesisBlock().ToBlock(nil).Hash().Hex())
 		} else {
 			log.Info("Writing custom genesis block")
 		}
@@ -244,6 +245,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		GasLimit:   g.GasLimit,
 		GasUsed:    g.GasUsed,
 		Difficulty: g.Difficulty,
+		SigData:    g.SigData,
 		Coinbase:   g.Coinbase,
 		Root:       root,
 	}
@@ -313,6 +315,7 @@ func DefaultGenesisBlock() *Genesis {
 		Config:     params.MainnetChainConfig,
 		Nonce:      523,
 		ExtraData:  hexutil.MustDecode("0x382ab4f32bd0a10000937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"),
+		SigData:    hexutil.MustDecode("0x3333333333333333333333333333333333333333333333333333333333333333"), // Clement need replaced!!!
 		GasLimit:   50000000,
 		Difficulty: big.NewInt(1048576),
 		Alloc:      decodePrealloc(mainnetAllocData),
@@ -325,6 +328,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 		Config:     params.TestnetChainConfig,
 		Nonce:      66,
 		ExtraData:  hexutil.MustDecode("0x3535353535353535353535353535353535353535353535353535353535353535"),
+		SigData:    hexutil.MustDecode("0x3333333333333333333333333333333333333333333333333333333333333333"), // Clement need replaced!!!
 		GasLimit:   16777216,
 		Difficulty: big.NewInt(1048576),
 		Alloc:      decodePrealloc(testnetAllocData),
