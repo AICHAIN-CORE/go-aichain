@@ -201,6 +201,35 @@ func (c *ChainConfig) IsCoinDelieverDone(num *big.Int) bool {
 	return TotalRewardBlockNum.Cmp(num) < 0
 }
 
+func (c *ChainConfig) AitNeedForMinerAccount() *big.Int {
+	return big.NewInt(100000)
+}
+
+func (c *ChainConfig) CheckMinerAccountAit(num *big.Int) bool {
+	if num == nil {
+		return false
+	}
+	min := c.AitNeedForMinerAccount()
+	gwei := big.NewInt(1e+18)
+	min.Mul(gwei, min)
+	return min.Cmp(num) <= 0
+}
+
+func (c *ChainConfig) DefaultCoinbase() string {
+	if c.ChainId.Cmp(MainnetChainConfig.ChainId) == 0 {
+		return "ai6846e953b9594b602bab319d1114836c2b050491"
+	}
+	return "aib135fb747599b830e2110b56e3c76496dc412c54"
+}
+
+func (c *ChainConfig) DefaultDifficaulty() *big.Int {
+	return big.NewInt(1048576)
+}
+
+func (c *ChainConfig) DefaultMaxDifficaulty() *big.Int {
+	return big.NewInt(1048576 * 4)
+}
+
 func (c *ChainConfig) IsConstantinople(num *big.Int) bool {
 	return isForked(c.ConstantinopleBlock, num)
 }
