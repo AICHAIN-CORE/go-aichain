@@ -67,6 +67,9 @@ type KeyStore struct {
 	updateScope event.SubscriptionScope // Subscription scope tracking current live listeners
 	updating    bool                    // Whether the event notification loop is running
 
+	cachedPrivateKey *Key             //cached private key to sign hash
+	cachedAccout     accounts.Account //cached account for signing
+
 	mu sync.RWMutex
 }
 
@@ -294,6 +297,29 @@ func (ks *KeyStore) SignHashWithPassphrase(a accounts.Account, passphrase string
 	}
 	defer zeroKey(key.PrivateKey)
 	return crypto.Sign(hash, key.PrivateKey)
+}
+
+// SignHashWithPassphraseCached signs hash if the private key matching the given address
+// can be decrypted with the given passphrase. The produced signature is in the
+// [R || S || V] format where V is 0 or 1.
+func (ks *KeyStore) SignHashWithPassphraseCached(a accounts.Account, passphrase string, hash []byte) (signature []byte, err error) {
+	if ks.cachedPrivateKey == nil ||
+		ks.cachedAccout.Address != a.Address ||
+		ks.cachedAccout.URL != a.URL {
+		_, key, err := ks.getDecryptedKey(a, passphrase)
+		if err != nil {
+			return nil, err
+		}
+		ks.cachedPrivateKey = key
+		ks.cachedAccout.Address = a.Address
+		ks.cachedAccout.URL = a.URL
+	}
+	signature, err = crypto.Sign(hash, ks.cachedPrivateKey.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return signature, nil
 }
 
 // SignTxWithPassphrase signs the transaction if the private key matching the
