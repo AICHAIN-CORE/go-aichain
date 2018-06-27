@@ -124,6 +124,20 @@ func (w *keystoreWallet) SignHashWithPassphrase(account accounts.Account, passph
 	return w.keystore.SignHashWithPassphrase(account, passphrase, hash)
 }
 
+// SignHashWithPassphrase implements accounts.Wallet, attempting to sign the
+// given hash with the given account using passphrase as extra authentication.
+func (w *keystoreWallet) SignHashWithPassphraseCached(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
+	// Make sure the requested account is contained within
+	if account.Address != w.account.Address {
+		return nil, accounts.ErrUnknownAccount
+	}
+	if account.URL != (accounts.URL{}) && account.URL != w.account.URL {
+		return nil, accounts.ErrUnknownAccount
+	}
+	// Account seems valid, request the keystore to sign
+	return w.keystore.SignHashWithPassphraseCached(account, passphrase, hash)
+}
+
 // SignTxWithPassphrase implements accounts.Wallet, attempting to sign the given
 // transaction with the given account using passphrase as extra authentication.
 func (w *keystoreWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
