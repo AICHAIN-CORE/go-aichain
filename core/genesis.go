@@ -347,6 +347,19 @@ func DefaultRinkebyGenesisBlock() *Genesis {
 	}
 }
 
+// DefaultRinkebyGenesisBlock returns the Rinkeby network genesis block.
+func DefaultAiConsensusGenesisBlock() *Genesis {
+	return &Genesis{
+		Config:    params.AiConsensusChainConfig,
+		Timestamp: 1492009146,
+		ExtraData: hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000023fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f304beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+		// ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000023fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f301beb845896ae589fbee97f37e3bff49cb68a3aa6c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+		GasLimit:   4700000,
+		Difficulty: big.NewInt(1),
+		Alloc:      decodePrealloc(aiconsensusAllocData),
+	}
+}
+
 // DeveloperGenesisBlock returns the 'gait --dev' genesis block. Note, this must
 // be seeded with the
 func DeveloperGenesisBlock(period uint64, faucet common.Address) *Genesis {
