@@ -19,6 +19,7 @@ package core
 import (
 	"fmt"
 
+	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
@@ -74,7 +75,8 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	stateDb, err := v.bc.StateAt(v.bc.CurrentBlock().Root())
 	if err == nil {
 		balance := stateDb.GetBalance(block.Coinbase())
-		if !v.bc.Config().CheckMinerAccountAit(balance) {
+		if (block.Coinbase() != common.Address{}) &&
+			!v.bc.Config().CheckMinerAccountAit(balance) {
 			return fmt.Errorf("Not enough AIT for the miner account")
 		}
 	} else {
@@ -110,7 +112,8 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 	}
 
 	balance := statedb.GetBalance(block.Coinbase())
-	if !v.bc.Config().CheckMinerAccountAit(balance) {
+	if (block.Coinbase() != common.Address{}) &&
+		!v.bc.Config().CheckMinerAccountAit(balance) {
 		return fmt.Errorf("Not enough AIT for the miner account")
 	}
 

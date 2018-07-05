@@ -218,6 +218,11 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 	return nil
 }
 
+//VerifyEthashHeader provides the interface to ai consensus engine to verify header
+func (ethash *Ethash) VerifyEthashHeader(chain consensus.ChainReader, header, parent *types.Header, uncle bool, seal bool) error {
+	return ethash.verifyHeader(chain, header, parent, uncle, seal)
+}
+
 // verifyHeader checks whether a header conforms to the consensus rules of the
 // stock AICHAIN ethash engine.
 // See YP section 4.3.4. "Block Header Validity"
