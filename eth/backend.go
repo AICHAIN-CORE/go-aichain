@@ -30,6 +30,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/common/hexutil"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
+	"github.com/AICHAIN-CORE/go-aichain/consensus/aiconsensus"
 	"github.com/AICHAIN-CORE/go-aichain/consensus/clique"
 	"github.com/AICHAIN-CORE/go-aichain/consensus/ethash"
 	"github.com/AICHAIN-CORE/go-aichain/core"
@@ -89,6 +90,7 @@ type AICHAIN struct {
 	miner     *miner.Miner
 	gasPrice  *big.Int
 	etherbase common.Address
+	passphrase string
 
 	networkId     uint64
 	netRPCService *ethapi.PublicNetAPI
@@ -218,19 +220,24 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *ethash.Config, chai
 	if chainConfig.Clique != nil {
 		return clique.New(chainConfig.Clique, db)
 	}
+	//Set the default engine to aiconsensus
+	return aiconsensus.New(chainConfig.AiConsensus, db)
+	// if chainConfig.AiConsensus != nil {
+	// 	return aiconsensus.New(chainConfig.AiConsensus, db)
+	// }
 	// Otherwise assume proof-of-work
-	switch {
-	case config.PowMode == ethash.ModeFake:
-		log.Warn("Ethash used in fake mode")
-		return ethash.NewFaker()
-	case config.PowMode == ethash.ModeTest:
-		log.Warn("Ethash used in test mode")
-		return ethash.NewTester()
-	default:
-		engine := ethash.New(ethash.Config{})
-		engine.SetThreads(-1) // Disable CPU mining
-		return engine
-	}
+	// switch {
+	// case config.PowMode == ethash.ModeFake:
+	// 	log.Warn("Ethash used in fake mode")
+	// 	return ethash.NewFaker()
+	// case config.PowMode == ethash.ModeTest:
+	// 	log.Warn("Ethash used in test mode")
+	// 	return ethash.NewTester()
+	// default:
+	// 	engine := ethash.New(ethash.Config{})
+	// 	engine.SetThreads(-1) // Disable CPU mining
+	// 	return engine
+	// }
 }
 
 // APIs returns the collection of RPC services the aichain package offers.
@@ -328,6 +335,7 @@ func (self *AICHAIN) SetEtherbase(etherbase common.Address) {
 
 // set in js console via admin interface or wrapper from cli flags
 func (self *AICHAIN) SetEtherbasePassphrase(passphrase string) {
+	self.passphrase = passphrase
 	self.miner.SetEtherbasePassphrase(passphrase)
 }
 
@@ -356,6 +364,14 @@ func (s *AICHAIN) StartMining(local bool) error {
 			return fmt.Errorf("signer missing: %v", err)
 		}
 		clique.Authorize(eb, wallet.SignHash)
+	}
+	if aiconsensus, ok := s.engine.(*aiconsensus.AiConsensus); ok {
+		wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+		if wallet == nil || err != nil {
+			log.Error("Etherbase account unavailable locally", "err", err)
+			return fmt.Errorf("signer missing: %v", err)
+		}
+		aiconsensus.AuthorizeWithPassphrase(eb, wallet.SignHashWithPassphraseCached, s.passphrase)
 	}
 	if local {
 		// If local (CPU) mining is started, we can disable the transaction rejection
