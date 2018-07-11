@@ -142,17 +142,18 @@ func (self *Miner) Start(coinbase common.Address) {
 		}
 	}
 
-	var (
-		syncing bool
-	)
+	//When forked, miner stopped, and the chain stopped.
+	// var (
+	// 	syncing bool
+	// )
 
-	sync := self.eth.Downloader().Progress()
-	syncing = self.eth.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestBlock
-	if syncing {
-	} else {
-		log.Info("Error: Node need sync blockchain data before start mining!")
-		return
-	}
+	// sync := self.eth.Downloader().Progress()
+	// syncing = self.eth.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestBlock
+	// if syncing {
+	// } else {
+	// 	log.Info("Error: Node need sync blockchain data before start mining!")
+	// 	return
+	// }
 
 	atomic.StoreInt32(&self.mining, 1)
 
