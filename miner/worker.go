@@ -28,6 +28,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
+	"github.com/AICHAIN-CORE/go-aichain/consensus/aiconsensus"
 	"github.com/AICHAIN-CORE/go-aichain/consensus/misc"
 	"github.com/AICHAIN-CORE/go-aichain/core"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
@@ -442,7 +443,15 @@ func (self *worker) commitNewWork() {
 		header.Coinbase = self.coinbase
 	}
 	if err := self.engine.Prepare(self.chain, header); err != nil {
+		if err.Error() != "invalid difficulty" {
+			//Stop the current mining work.
+			self.push(nil)
 		log.Error("Failed to prepare header for mining", "err", err)
+		return
+	}
+		//Stop the current mining work.
+		self.push(nil)
+		log.Debug("Failed to prepare header for mining", "err", err)
 		return
 	}
 	// If we are care about TheDAO hard-fork check whether to override the extra-data or not
@@ -505,7 +514,11 @@ func (self *worker) commitNewWork() {
 			fmt.Printf("Not enough AIT for the miner account, %s AIT needed, balance of current miner account: %s AIT.\n", self.eth.BlockChain().Config().AitNeedForMinerAccount().Text(10), balance.Div(balance, big.NewInt(1e+18)).Text(10))
 			os.Exit(1)
 		}
-
+		sign := true
+		if _, ok := self.engine.(*aiconsensus.AiConsensus); ok && header.Number.Uint64() > self.eth.BlockChain().Config().AiConsensus.ForkBlockNumber {
+			sign = false
+		}
+		if sign {
 		account := accounts.Account{Address: self.coinbase}
 		wallet, err := self.eth.AccountManager().Find(account)
 		if err != nil {
@@ -517,6 +530,7 @@ func (self *worker) commitNewWork() {
 			log.Error("Error to sign block header", "err", err)
 			return
 		}
+	}
 	}
 	// Create the new block to seal with the consensus engine
 	//No uncle support
