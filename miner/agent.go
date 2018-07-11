@@ -100,6 +100,11 @@ out:
 }
 
 func (self *CpuAgent) mine(work *Work, stop <-chan struct{}) {
+	if work == nil {
+		log.Debug("Empty mining work found, waiting for the new work.")
+		self.returnCh <- nil
+		return
+	}
 	if result, err := self.engine.Seal(self.chain, work.Block, stop); result != nil {
 		log.Info("Successfully sealed new block", "number", result.Number(), "hash", result.Hash())
 		self.returnCh <- &Result{work, result}
