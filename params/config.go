@@ -21,6 +21,7 @@ import (
 	"math/big"
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
+	"github.com/AICHAIN-CORE/go-aichain/common/hexutil"
 )
 
 var (
@@ -42,6 +43,17 @@ var (
 		ByzantiumBlock:      big.NewInt(0),
 		ConstantinopleBlock: nil,
 		Ethash:              new(EthashConfig),
+		AiConsensus: &AiConsensusConfig{
+			MaxValidatorNumber:   10,
+			MaxPooledMinerNumber: 10,
+			Period:               1,
+			BlockValidNumber:     12,
+			Epoch:                1200,
+			VoteEpoch:            30000,
+			EthashDifficulty:     big.NewInt(10000000),
+			ExtraData:            hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000000a9bcaccef0d131b37e51c8ffcf5bb1651ecc405f6cc874e476c25c1fdc4c601829f17c8b3b06cbd773cf4f94d5062c590bceecfd0d446114e09a86b4441ae7572a2a94111403167bb4a2d4f4ed3e74cfebf670c598ca813d4888b7585db462391614b07256086cf6486057b33d9f23626076becd26034362e1762aeb5f01166b2f694f4fb19fb272377e38ab5f714bd29a48423ea8e96ef7e35df8e6876aabc0487e85216ea4365634b7ac29b70ea8baeeadc52e73f0eee87efb2d3583210ecf42a03d5bead8cb7300a58971525fb7c8ef19b3faa18c6156ec5ae4a3f705c8e6238575ba6d99ae608e93c5a4894bba336e568fca5fae3784df77b91be85ab990179936f3037f2e66315410d58d278124918f79914d9e4b497287fd48fff8f6feae623a26c49e08a871defe4f774dcdcc10dab8f45643a44070a3f0cb2e89d48aee35cec145d3ce061dc99fe2fae8aad527fefdabccb01855499673b57592322621904c51c31a84bd7be6d7e39c74c74710e25cee1931d2fed7ab0f20266f6361f6d336218a52698ab48ab21ec9b239319820000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+			ForkBlockNumber:      328800,
+		},
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the Ropsten test network.
@@ -57,6 +69,17 @@ var (
 		ByzantiumBlock:      big.NewInt(0),
 		ConstantinopleBlock: nil,
 		Ethash:              new(EthashConfig),
+		AiConsensus: &AiConsensusConfig{
+			MaxValidatorNumber:   4,
+			MaxPooledMinerNumber: 4,
+			Period:               1,
+			BlockValidNumber:     12,
+			Epoch:                120,
+			VoteEpoch:            30000,
+			EthashDifficulty:     big.NewInt(10000),
+			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000043fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f34eae4b8e5d2bed9cddfd6b309f965a27759bad96c40cee6c6692307dda2ff1a33860855fc3b39f1004beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+			ForkBlockNumber:      360000,
+		},
 	}
 
 	// RinkebyChainConfig contains the chain parameters to run a node on the Rinkeby test network.
@@ -77,21 +100,85 @@ var (
 		},
 	}
 
+	// AiConsensusChainConfig contains the chain parameters to run a node on the Ai consensus network.
+	AiConsensusChainConfig = &ChainConfig{
+		ChainId:             big.NewInt(4),
+		HomesteadBlock:      big.NewInt(1),
+		DAOForkBlock:        nil,
+		DAOForkSupport:      false,
+		EIP150Block:         nil,
+		EIP150Hash:          common.Hash{},
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: nil,
+		AiConsensus: &AiConsensusConfig{
+			MaxValidatorNumber:   4,
+			MaxPooledMinerNumber: 4,
+			Period:               1,
+			BlockValidNumber:     12,
+			Epoch:                120,
+			VoteEpoch:            30000,
+			EthashDifficulty:     big.NewInt(10000),
+			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000043fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f34eae4b8e5d2bed9cddfd6b309f965a27759bad96c40cee6c6692307dda2ff1a33860855fc3b39f1004beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+		},
+	}
+
 	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the AICHAIN core developers into the Ethash consensus.
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil}
+	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil,
+		&AiConsensusConfig{
+			MaxValidatorNumber:   10,
+			MaxPooledMinerNumber: 10,
+			Period:               1,
+			BlockValidNumber:     12,
+			Epoch:                1200,
+			VoteEpoch:            30000,
+			EthashDifficulty:     big.NewInt(10000000),
+			ExtraData:            hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000000a9bcaccef0d131b37e51c8ffcf5bb1651ecc405f6cc874e476c25c1fdc4c601829f17c8b3b06cbd773cf4f94d5062c590bceecfd0d446114e09a86b4441ae7572a2a94111403167bb4a2d4f4ed3e74cfebf670c598ca813d4888b7585db462391614b07256086cf6486057b33d9f23626076becd26034362e1762aeb5f01166b2f694f4fb19fb272377e38ab5f714bd29a48423ea8e96ef7e35df8e6876aabc0487e85216ea4365634b7ac29b70ea8baeeadc52e73f0eee87efb2d3583210ecf42a03d5bead8cb7300a58971525fb7c8ef19b3faa18c6156ec5ae4a3f705c8e6238575ba6d99ae608e93c5a4894bba336e568fca5fae3784df77b91be85ab990179936f3037f2e66315410d58d278124918f79914d9e4b497287fd48fff8f6feae623a26c49e08a871defe4f774dcdcc10dab8f45643a44070a3f0cb2e89d48aee35cec145d3ce061dc99fe2fae8aad527fefdabccb01855499673b57592322621904c51c31a84bd7be6d7e39c74c74710e25cee1931d2fed7ab0f20266f6361f6d336218a52698ab48ab21ec9b239319820000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+			ForkBlockNumber:      328800,
+		}}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the AICHAIN core developers into the Clique consensus.
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}}
+	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil}
 
-	TestChainConfig = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil}
+	// AllAiConsensusProtocolChanges contains every protocol change (EIPs) introduced
+	// and accepted by the AICHAIN core developers into the AiConsensus consensus.
+	//
+	// This configuration is intentionally not using keyed fields to force anyone
+	// adding flags to the config to also have to set these fields.
+	AllAiConsensusProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil,
+		&AiConsensusConfig{
+			MaxValidatorNumber:   4,
+			MaxPooledMinerNumber: 4,
+			Period:               1,
+			BlockValidNumber:     12,
+			Epoch:                120,
+			VoteEpoch:            30000,
+			EthashDifficulty:     big.NewInt(10000),
+			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000043fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f34eae4b8e5d2bed9cddfd6b309f965a27759bad96c40cee6c6692307dda2ff1a33860855fc3b39f1004beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+		}}
+
+	//TestChainConfig
+	TestChainConfig = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil,
+		&AiConsensusConfig{
+			MaxValidatorNumber:   4,
+			MaxPooledMinerNumber: 4,
+			Period:               1,
+			BlockValidNumber:     12,
+			Epoch:                120,
+			VoteEpoch:            30000,
+			EthashDifficulty:     big.NewInt(10000),
+			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000023fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f304beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+			ForkBlockNumber:      360000,
+		}}
 	TestRules       = TestChainConfig.Rules(new(big.Int))
 )
 
@@ -121,6 +208,7 @@ type ChainConfig struct {
 	// Various consensus engines
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
+	AiConsensus *AiConsensusConfig `json:"aiconsensus,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -142,10 +230,31 @@ func (c *CliqueConfig) String() string {
 	return "clique"
 }
 
+// AiConsensusConfig is the consensus engine configs for proof-of-authority based sealing.
+type AiConsensusConfig struct {
+	MaxValidatorNumber   int      `json:"max-validator-number"`   // Max number of Validator allowed
+	MaxPooledMinerNumber int      `json:"max-pooledminer-number"` // Max number of Pooled miner allowed
+	Period               uint64   `json:"period"`                 // Number of seconds between blocks to enforce
+	BlockValidNumber     uint64   `json:"block-valid-number"`     // Number of block to verify
+	Epoch                uint64   `json:"epoch"`                  // Epoch length to reset checkpoint
+	VoteEpoch            uint64   `json:"vote-epoch"`             // Epoch length to reset votes
+	EthashDifficulty     *big.Int `json:"ethash-difficulty"`      // Difficulty to ethash mine
+	ExtraData            []byte   `json:"extra-data"`             //Extra data for genesis
+	ForkBlockNumber      uint64   `json:"fork-blockNumber"`       //Block number to start engine fork
+	Standalone           bool     `json:"standalone"`             //If the engine is standalone
+}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c *AiConsensusConfig) String() string {
+	return "aiconsensus"
+}
+
 // String implements the fmt.Stringer interface.
 func (c *ChainConfig) String() string {
 	var engine interface{}
 	switch {
+	case c.AiConsensus != nil:
+		engine = c.AiConsensus
 	case c.Ethash != nil:
 		engine = c.Ethash
 	case c.Clique != nil:
@@ -197,7 +306,12 @@ func (c *ChainConfig) IsCoinDelieverDone(num *big.Int) bool {
 	if num == nil {
 		return false
 	}
-	var TotalRewardBlockNum *big.Int = big.NewInt(105000000) // after 315000000 AIT , we stop deliver AIT
+	// var TotalRewardBlockNum *big.Int = big.NewInt(105000000) // after 315000000 AIT , we stop deliver AIT
+	var TotalRewardBlockNum *big.Int = big.NewInt(1250000000) // after 315000000 AIT , we stop deliver AIT
+	//New rewards mothod:
+	//0.2*10+1+0=3 AIT/12 blocks.
+	//Currently 360000*3 AIT is already mined.
+	//So 315000000-360000*3=313920000 AIT counts blocks:  313920000/(3 AIT/12 blocks) =  1255680000+360000(forked)=1256040000Blocks.
 	return TotalRewardBlockNum.Cmp(num) < 0
 }
 
