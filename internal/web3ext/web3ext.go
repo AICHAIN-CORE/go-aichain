@@ -21,6 +21,7 @@ var Modules = map[string]string{
 	"admin":      Admin_JS,
 	"chequebook": Chequebook_JS,
 	"clique":     Clique_JS,
+	"aiconsensus": Aiconsensus_JS,
 	"debug":      Debug_JS,
 	"eth":        Eth_JS,
 	"miner":      Miner_JS,
@@ -105,6 +106,74 @@ web3._extend({
 			name: 'proposals',
 			getter: 'clique_proposals'
 		}),
+	]
+});
+`
+
+const Aiconsensus_JS = `
+web3._extend({
+	property: 'aiconsensus',
+	methods: [
+		new web3._extend.Method({
+			name: 'getSnapshot',
+			call: 'aiconsensus_getSnapshot',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getSnapshotAtHash',
+			call: 'aiconsensus_getSnapshotAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getValidators',
+			call: 'aiconsensus_getValidators',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getValidatorsAtHash',
+			call: 'aiconsensus_getValidatorsAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getPooledMiners',
+			call: 'aiconsensus_getPooledMiners',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getPooledMinersAtHash',
+			call: 'aiconsensus_getPooledMinersAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getTally',
+			call: 'aiconsensus_getTally',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getTallyAtHash',
+			call: 'aiconsensus_getTallyAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'propose',
+			call: 'aiconsensus_propose',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'discard',
+			call: 'aiconsensus_discard',
+			params: 1
+		}),
+	],
+	properties: [
+		new web3._extend.Property({
+			name: 'proposals',
+			getter: 'aiconsensus_proposals'
+		})
 	]
 });
 `
