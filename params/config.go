@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	MainnetGenesisHash = common.HexToHash("0xd546524766262ad16ad67ecdc87ed872e782b58fc9a97ecbf63637b9f279eed8") // Mainnet genesis hash to enforce below configs on
+	MainnetGenesisHash = common.HexToHash("0x84ba29088566df091e2e7214ca338b4c6f7fda8a52c0454fd134b0e485da1d3a") // Mainnet genesis hash to enforce below configs on
 	TestnetGenesisHash = common.HexToHash("0x41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d") // Testnet genesis hash to enforce below configs on
 )
 
