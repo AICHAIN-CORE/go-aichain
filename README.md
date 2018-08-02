@@ -269,6 +269,14 @@ Which will start mining blocks and transactions on a single CPU thread, creditin
 the account specified by `--etherbase`. You can further tune the mining by changing the default gas
 limit blocks converge to (`--targetgaslimit`) and the price transactions are accepted at (`--gasprice`).
 
+#### AICHAIN block explorer
+
+The testnet blockchain explorer: 
+https://testnetscan.aichain.me/
+
+The mainnet blockchain explorer:
+comming soon...
+
 ## License
 
 The go-aichain library (i.e. all code outside of the `cmd` directory) is licensed under the
