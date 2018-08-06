@@ -277,6 +277,12 @@ https://testnetscan.aichain.me/
 The mainnet blockchain explorer:
 comming soon...
 
+#### AICHAIN node current version
+
+Current version: 1.0.2
+The testnet and mainnet both are running online, but only testnet is ready for open to public.
+But the people still can use the release package to connect to testnet and mainnet.
+
 ## License
 
 The go-aichain library (i.e. all code outside of the `cmd` directory) is licensed under the
