@@ -50,7 +50,7 @@ func TestConsoleWelcome(t *testing.T) {
 	gait.SetTemplateFunc("goos", func() string { return runtime.GOOS })
 	gait.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
 	gait.SetTemplateFunc("gover", runtime.Version)
-	gait.SetTemplateFunc("gethver", func() string { return params.Version })
+	gait.SetTemplateFunc("gethver", func() string { return params.VersionWithMeta })
 	gait.SetTemplateFunc("niltime", func() string { return time.Unix(0, 0).Format(time.RFC1123) })
 	gait.SetTemplateFunc("apis", func() string { return ipcAPIs })
 

@@ -32,7 +32,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/eth"
 	"github.com/AICHAIN-CORE/go-aichain/node"
 	"github.com/AICHAIN-CORE/go-aichain/params"
-	whisper "github.com/AICHAIN-CORE/go-aichain/whisper/whisperv5"
+	whisper "github.com/AICHAIN-CORE/go-aichain/whisper/whisperv6"
 	"github.com/naoina/toml"
 )
 

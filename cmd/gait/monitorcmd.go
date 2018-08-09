@@ -185,13 +185,13 @@ func resolveMetric(metrics map[string]interface{}, pattern string, path string) 
 	parts := strings.SplitN(pattern, "/", 2)
 	if len(parts) > 1 {
 		for _, variation := range strings.Split(parts[0], ",") {
-			if submetrics, ok := metrics[variation].(map[string]interface{}); !ok {
+			submetrics, ok := metrics[variation].(map[string]interface{})
+			if !ok {
 				utils.Fatalf("Failed to retrieve system metrics: %s", path+variation)
 				return nil
-			} else {
+			}
 				results = append(results, resolveMetric(submetrics, parts[1], path+variation+"/")...)
 			}
-		}
 		return results
 	}
 	// Depending what the last link is, return or expand
