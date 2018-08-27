@@ -22,6 +22,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/params"
 )
 
+// Gas costs
 const (
 	GasQuickStep   uint64 = 2
 	GasFastestStep uint64 = 3
