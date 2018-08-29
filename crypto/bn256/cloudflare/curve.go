@@ -5,14 +5,14 @@ import (
 )
 
 // curvePoint implements the elliptic curve y²=x³+3. Points are kept in Jacobian
-// form and t=z² when valid. G₁ is the set of points of this curve on GF(p).
+// form and t=z² when valid. G�?is the set of points of this curve on GF(p).
 type curvePoint struct {
 	x, y, z, t gfP
 }
 
 var curveB = newGFp(3)
 
-// curveGen is the generator of G₁.
+// curveGen is the generator of G�?
 var curveGen = &curvePoint{
 	x: *newGFp(1),
 	y: *newGFp(2),
@@ -183,15 +183,24 @@ func (c *curvePoint) Double(a *curvePoint) {
 }
 
 func (c *curvePoint) Mul(a *curvePoint, scalar *big.Int) {
-	sum, t := &curvePoint{}, &curvePoint{}
-	sum.SetInfinity()
+	precomp := [1 << 2]*curvePoint{nil, {}, {}, {}}
+	precomp[1].Set(a)
+	precomp[2].Set(a)
+	gfpMul(&precomp[2].x, &precomp[2].x, xiTo2PSquaredMinus2Over3)
+	precomp[3].Add(precomp[1], precomp[2])
 
-	for i := scalar.BitLen(); i >= 0; i-- {
+	multiScalar := curveLattice.Multi(scalar)
+
+	sum := &curvePoint{}
+	sum.SetInfinity()
+	t := &curvePoint{}
+
+	for i := len(multiScalar) - 1; i >= 0; i-- {
 		t.Double(sum)
-		if scalar.Bit(i) != 0 {
-			sum.Add(t, a)
-		} else {
+		if multiScalar[i] == 0 {
 			sum.Set(t)
+		} else {
+			sum.Add(t, precomp[multiScalar[i]])
 		}
 	}
 	c.Set(sum)

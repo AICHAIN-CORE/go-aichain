@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64,!appengine,!gccgo
-
 package bn256
 
 import (
 	"crypto/rand"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func ExamplePair() {
+func TestExamplePair(t *testing.T) {
 	// This implements the tripartite Diffie-Hellman algorithm from "A One
 	// Round Protocol for Tripartite Diffie-Hellman", A. Joux.
 	// http://www.springerlink.com/content/cddc57yyva0hburb/fulltext.pdf
@@ -20,7 +21,7 @@ func ExamplePair() {
 	b, _ := rand.Int(rand.Reader, Order)
 	c, _ := rand.Int(rand.Reader, Order)
 
-	// Then each party calculates g‚ÇÅ and g‚ÇÇ times their private value.
+	// Then each party calculates g‚Ç?and g‚Ç?times their private value.
 	pa := new(G1).ScalarBaseMult(a)
 	qa := new(G2).ScalarBaseMult(a)
 
@@ -42,4 +43,9 @@ func ExamplePair() {
 	k3.ScalarMult(k3, c)
 
 	// k1, k2 and k3 will all be equal.
+
+	require.Equal(t, k1, k2)
+	require.Equal(t, k1, k3)
+
+	require.Equal(t, len(np), 4) //Avoid gometalinter varcheck err on np
 }
