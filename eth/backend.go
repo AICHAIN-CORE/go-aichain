@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -35,6 +34,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/consensus/ethash"
 	"github.com/AICHAIN-CORE/go-aichain/core"
 	"github.com/AICHAIN-CORE/go-aichain/core/bloombits"
+        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/core/vm"
 	"github.com/AICHAIN-CORE/go-aichain/eth/downloader"
@@ -66,7 +66,6 @@ type AICHAIN struct {
 
 	// Channel for shutting down the service
 	shutdownChan  chan bool    // Channel for shutting down the aichain
-	stopDbUpgrade func() error // stop chain db sequential key upgrade
 
 	// Handlers
 	txPool          *core.TxPool
@@ -85,14 +84,14 @@ type AICHAIN struct {
 	bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
 
-	ApiBackend *EthApiBackend
+	APIBackend *EthAPIBackend
 
-	miner     *miner.Miner
-	gasPrice  *big.Int
-	etherbase common.Address
+	miner      *miner.Miner
+	gasPrice   *big.Int
+	etherbase  common.Address
 	passphrase string
 
-	networkId     uint64
+	networkID     uint64
 	netRPCService *ethapi.PublicNetAPI
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
@@ -116,7 +115,6 @@ func New(ctx *node.ServiceContext, config *Config) (*AICHAIN, error) {
 	if err != nil {
 		return nil, err
 	}
-	stopDbUpgrade := upgradeDeduplicateData(chainDb)
 	chainConfig, genesisHash, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
 	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
 		return nil, genesisErr
@@ -131,8 +129,7 @@ func New(ctx *node.ServiceContext, config *Config) (*AICHAIN, error) {
 		accountManager: ctx.AccountManager,
 		engine:         CreateConsensusEngine(ctx, &config.Ethash, chainConfig, chainDb),
 		shutdownChan:   make(chan bool),
-		stopDbUpgrade:  stopDbUpgrade,
-		networkId:      config.NetworkId,
+		networkID:      config.NetworkId,
 		gasPrice:       config.GasPrice,
 		etherbase:      config.Etherbase,
 		bloomRequests:  make(chan chan *bloombits.Retrieval),
@@ -142,11 +139,11 @@ func New(ctx *node.ServiceContext, config *Config) (*AICHAIN, error) {
 	log.Info("Initialising AICHAIN protocol", "versions", ProtocolVersions, "network", config.NetworkId)
 
 	if !config.SkipBcVersionCheck {
-		bcVersion := core.GetBlockChainVersion(chainDb)
+		bcVersion := rawdb.ReadDatabaseVersion(chainDb)
 		if bcVersion != core.BlockChainVersion && bcVersion != 0 {
 			return nil, fmt.Errorf("Blockchain DB version mismatch (%d / %d). Run gait upgradedb.\n", bcVersion, core.BlockChainVersion)
 		}
-		core.WriteBlockChainVersion(chainDb, core.BlockChainVersion)
+		rawdb.WriteDatabaseVersion(chainDb, core.BlockChainVersion)
 	}
 	var (
 		vmConfig    = vm.Config{EnablePreimageRecording: config.EnablePreimageRecording}
@@ -160,7 +157,7 @@ func New(ctx *node.ServiceContext, config *Config) (*AICHAIN, error) {
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
 		eth.blockchain.SetHead(compat.RewindTo)
-		core.WriteChainConfig(chainDb, genesisHash, chainConfig)
+		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
 	}
 	eth.bloomIndexer.Start(eth.blockchain)
 
@@ -175,12 +172,12 @@ func New(ctx *node.ServiceContext, config *Config) (*AICHAIN, error) {
 	eth.miner = miner.New(eth, eth.chainConfig, eth.EventMux(), eth.engine)
 	eth.miner.SetExtra(makeExtraData(config.ExtraData))
 
-	eth.ApiBackend = &EthApiBackend{eth, nil}
+	eth.APIBackend = &EthAPIBackend{eth, nil}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
 		gpoParams.Default = config.GasPrice
 	}
-	eth.ApiBackend.gpo = gasprice.NewOracle(eth.ApiBackend, gpoParams)
+	eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, gpoParams)
 
 	return eth, nil
 }
@@ -240,10 +237,10 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *ethash.Config, chai
 	// }
 }
 
-// APIs returns the collection of RPC services the aichain package offers.
+// APIs return the collection of RPC services the aichain package offers.
 // NOTE, some of these services probably need to be moved to somewhere else.
 func (s *AICHAIN) APIs() []rpc.API {
-	apis := ethapi.GetAPIs(s.ApiBackend)
+	apis := ethapi.GetAPIs(s.APIBackend)
 
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
@@ -273,7 +270,7 @@ func (s *AICHAIN) APIs() []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   filters.NewPublicFilterAPI(s.ApiBackend, false),
+			Service:   filters.NewPublicFilterAPI(s.APIBackend, false),
 			Public:    true,
 		}, {
 			Namespace: "admin",
@@ -324,13 +321,13 @@ func (s *AICHAIN) Etherbase() (eb common.Address, err error) {
 	return common.Address{}, fmt.Errorf("etherbase must be explicitly specified")
 }
 
-// set in js console via admin interface or wrapper from cli flags
-func (self *AICHAIN) SetEtherbase(etherbase common.Address) {
-	self.lock.Lock()
-	self.etherbase = etherbase
-	self.lock.Unlock()
+// SetEtherbase sets the mining reward address.
+func (s *AICHAIN) SetEtherbase(etherbase common.Address) {
+	s.lock.Lock()
+	s.etherbase = etherbase
+	s.lock.Unlock()
 
-	self.miner.SetEtherbase(etherbase)
+	s.miner.SetEtherbase(etherbase)
 }
 
 // set in js console via admin interface or wrapper from cli flags
@@ -376,7 +373,7 @@ func (s *AICHAIN) StartMining(local bool) error {
 	if local {
 		// If local (CPU) mining is started, we can disable the transaction rejection
 		// mechanism introduced to speed sync times. CPU mining on mainnet is ludicrous
-		// so noone will ever hit this path, whereas marking sync done on CPU mining
+		// so none will ever hit this path, whereas marking sync done on CPU mining
 		// will ensure that private networks work in single miner mode too.
 		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
 	}
@@ -396,7 +393,7 @@ func (s *AICHAIN) Engine() consensus.Engine           { return s.engine }
 func (s *AICHAIN) ChainDb() ethdb.Database            { return s.chainDb }
 func (s *AICHAIN) IsListening() bool                  { return true } // Always listening
 func (s *AICHAIN) EthVersion() int                    { return int(s.protocolManager.SubProtocols[0].Version) }
-func (s *AICHAIN) NetVersion() uint64                 { return s.networkId }
+func (s *AICHAIN) NetVersion() uint64                 { return s.networkID }
 func (s *AICHAIN) Downloader() *downloader.Downloader { return s.protocolManager.downloader }
 func (s *AICHAIN) NodeServer() *p2p.Server            { return s.MyNodeServer }
 
@@ -437,9 +434,6 @@ func (s *AICHAIN) Start(srvr *p2p.Server) error {
 // Stop implements node.Service, terminating all internal goroutines used by the
 // AICHAIN protocol.
 func (s *AICHAIN) Stop() error {
-	if s.stopDbUpgrade != nil {
-		s.stopDbUpgrade()
-	}
 	s.bloomIndexer.Close()
 	s.blockchain.Stop()
 	s.protocolManager.Stop()
