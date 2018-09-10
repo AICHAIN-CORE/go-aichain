@@ -81,14 +81,11 @@ func (n *upnp) internalAddress() (net.IP, error) {
 			return nil, err
 		}
 		for _, addr := range addrs {
-			switch x := addr.(type) {
-			case *net.IPNet:
-				if x.Contains(devaddr.IP) {
+			if x, ok := addr.(*net.IPNet); ok && x.Contains(devaddr.IP) {
 					return x.IP, nil
 				}
 			}
 		}
-	}
 	return nil, fmt.Errorf("could not find local address in same net as %v", devaddr)
 }
 
