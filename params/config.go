@@ -32,7 +32,7 @@ var (
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
-		ChainId:             big.NewInt(18376426810067278), // this is the HEX binary: "AICHAIN", convirt to bigint as network ID
+		ChainID:             big.NewInt(18376426810067278), // this is the HEX binary: "AICHAIN", convirt to bigint as network ID
 		HomesteadBlock:      big.NewInt(0),
 		DAOForkBlock:        big.NewInt(0),
 		DAOForkSupport:      false,
@@ -58,7 +58,7 @@ var (
 
 	// TestnetChainConfig contains the chain parameters to run a node on the Ropsten test network.
 	TestnetChainConfig = &ChainConfig{
-		ChainId:             big.NewInt(3),
+		ChainID:             big.NewInt(3),
 		HomesteadBlock:      big.NewInt(0),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      false,
@@ -84,7 +84,7 @@ var (
 
 	// RinkebyChainConfig contains the chain parameters to run a node on the Rinkeby test network.
 	RinkebyChainConfig = &ChainConfig{
-		ChainId:             big.NewInt(4),
+		ChainID:             big.NewInt(4),
 		HomesteadBlock:      big.NewInt(1),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      false,
@@ -179,7 +179,7 @@ var (
 			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000023fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f304beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			ForkBlockNumber:      360000,
 		}}
-	TestRules       = TestChainConfig.Rules(new(big.Int))
+	TestRules = TestChainConfig.Rules(new(big.Int))
 )
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -188,7 +188,7 @@ var (
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
 type ChainConfig struct {
-	ChainId *big.Int `json:"chainId"` // Chain id identifies the current chain and is used for replay protection
+	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
 
 	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
 
@@ -206,8 +206,8 @@ type ChainConfig struct {
 	ConstantinopleBlock *big.Int `json:"constantinopleBlock,omitempty"` // Constantinople switch block (nil = no fork, 0 = already activated)
 
 	// Various consensus engines
-	Ethash *EthashConfig `json:"ethash,omitempty"`
-	Clique *CliqueConfig `json:"clique,omitempty"`
+	Ethash      *EthashConfig      `json:"ethash,omitempty"`
+	Clique      *CliqueConfig      `json:"clique,omitempty"`
 	AiConsensus *AiConsensusConfig `json:"aiconsensus,omitempty"`
 }
 
@@ -263,7 +263,7 @@ func (c *ChainConfig) String() string {
 		engine = "unknown"
 	}
 	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v Constantinople: %v Engine: %v}",
-		c.ChainId,
+		c.ChainID,
 		c.HomesteadBlock,
 		c.DAOForkBlock,
 		c.DAOForkSupport,
@@ -356,6 +356,8 @@ func (c *ChainConfig) GasTable(num *big.Int) GasTable {
 		return GasTableHomestead
 	}
 	switch {
+	case c.IsConstantinople(num):
+		return GasTableConstantinople
 	case c.IsEIP158(num):
 		return GasTableEIP158
 	case c.IsEIP150(num):
@@ -402,7 +404,7 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int) *Confi
 	if isForkIncompatible(c.EIP158Block, newcfg.EIP158Block, head) {
 		return newCompatError("EIP158 fork block", c.EIP158Block, newcfg.EIP158Block)
 	}
-	if c.IsEIP158(head) && !configNumEqual(c.ChainId, newcfg.ChainId) {
+	if c.IsEIP158(head) && !configNumEqual(c.ChainID, newcfg.ChainID) {
 		return newCompatError("EIP158 chain ID", c.EIP158Block, newcfg.EIP158Block)
 	}
 	if isForkIncompatible(c.ByzantiumBlock, newcfg.ByzantiumBlock, head) {
@@ -475,15 +477,16 @@ func (err *ConfigCompatError) Error() string {
 // Rules is a one time interface meaning that it shouldn't be used in between transition
 // phases.
 type Rules struct {
-	ChainId                                   *big.Int
+	ChainID                                   *big.Int
 	IsHomestead, IsEIP150, IsEIP155, IsEIP158 bool
 	IsByzantium                               bool
 }
 
+// Rules ensures c's ChainID is not nil.
 func (c *ChainConfig) Rules(num *big.Int) Rules {
-	chainId := c.ChainId
-	if chainId == nil {
-		chainId = new(big.Int)
+	chainID := c.ChainID
+	if chainID == nil {
+		chainID = new(big.Int)
 	}
-	return Rules{ChainId: new(big.Int).Set(chainId), IsHomestead: c.IsHomestead(num), IsEIP150: c.IsEIP150(num), IsEIP155: c.IsEIP155(num), IsEIP158: c.IsEIP158(num), IsByzantium: c.IsByzantium(num)}
+	return Rules{ChainID: new(big.Int).Set(chainID), IsHomestead: c.IsHomestead(num), IsEIP150: c.IsEIP150(num), IsEIP155: c.IsEIP155(num), IsEIP158: c.IsEIP158(num), IsByzantium: c.IsByzantium(num)}
 }
