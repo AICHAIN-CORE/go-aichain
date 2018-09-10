@@ -45,7 +45,7 @@ const (
 	resultQueueSize  = 10
 	miningLogAtDepth = 5
 
-	// txChanSize is the size of channel listening to TxPreEvent.
+	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
@@ -70,10 +70,11 @@ type Work struct {
 	signer types.Signer
 
 	state     *state.StateDB // apply state changes here
-	ancestors *set.Set       // ancestor set (used for checking uncle parent validity)
-	family    *set.Set       // family set (used for checking uncle invalidity)
-	uncles    *set.Set       // uncle set
+	ancestors mapset.Set     // ancestor set (used for checking uncle parent validity)
+	family    mapset.Set     // family set (used for checking uncle invalidity)
+	uncles    mapset.Set     // uncle set
 	tcount    int            // tx count in cycle
+	gasPool   *core.GasPool  // available gas used to pack transactions
 
 	Block *types.Block // the new block
 
@@ -98,8 +99,8 @@ type worker struct {
 
 	// update loop
 	mux          *event.TypeMux
-	txCh         chan core.TxPreEvent
-	txSub        event.Subscription
+	txsCh        chan core.NewTxsEvent
+	txsSub       event.Subscription
 	chainHeadCh  chan core.ChainHeadEvent
 	chainHeadSub event.Subscription
 	chainSideCh  chan core.ChainSideEvent
@@ -121,6 +122,10 @@ type worker struct {
 	currentMu sync.Mutex
 	current   *Work
 
+	snapshotMu    sync.RWMutex
+	snapshotBlock *types.Block
+	snapshotState *state.StateDB
+
 	uncleMu        sync.Mutex
 	possibleUncles map[common.Hash]*types.Block
 
@@ -137,7 +142,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		engine:         engine,
 		eth:            eth,
 		mux:            mux,
-		txCh:           make(chan core.TxPreEvent, txChanSize),
+		txsCh:          make(chan core.NewTxsEvent, txChanSize),
 		chainHeadCh:    make(chan core.ChainHeadEvent, chainHeadChanSize),
 		chainSideCh:    make(chan core.ChainSideEvent, chainSideChanSize),
 		chainDb:        eth.ChainDb(),
@@ -149,8 +154,8 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		agents:         make(map[Agent]struct{}),
 		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 	}
-	// Subscribe TxPreEvent for tx pool
-	worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
+	// Subscribe NewTxsEvent for tx pool
+	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
 	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
@@ -181,32 +186,28 @@ func (self *worker) setExtra(extra []byte) {
 }
 
 func (self *worker) pending() (*types.Block, *state.StateDB) {
+	if atomic.LoadInt32(&self.mining) == 0 {
+		// return a snapshot to avoid contention on currentMu mutex
+		self.snapshotMu.RLock()
+		defer self.snapshotMu.RUnlock()
+		return self.snapshotBlock, self.snapshotState.Copy()
+	}
+
 	self.currentMu.Lock()
 	defer self.currentMu.Unlock()
-
-	if atomic.LoadInt32(&self.mining) == 0 {
-		return types.NewBlock(
-			self.current.header,
-			self.current.txs,
-			nil,
-			self.current.receipts,
-		), self.current.state.Copy()
-	}
 	return self.current.Block, self.current.state.Copy()
 }
 
 func (self *worker) pendingBlock() *types.Block {
+	if atomic.LoadInt32(&self.mining) == 0 {
+		// return a snapshot to avoid contention on currentMu mutex
+		self.snapshotMu.RLock()
+		defer self.snapshotMu.RUnlock()
+		return self.snapshotBlock
+}
+
 	self.currentMu.Lock()
 	defer self.currentMu.Unlock()
-
-	if atomic.LoadInt32(&self.mining) == 0 {
-		return types.NewBlock(
-			self.current.header,
-			self.current.txs,
-			nil,
-			self.current.receipts,
-		)
-	}
 	return self.current.Block
 }
 
@@ -263,7 +264,7 @@ func (self *worker) unregister(agent Agent) {
 }
 
 func (self *worker) update() {
-	defer self.txSub.Unsubscribe()
+	defer self.txsSub.Unsubscribe()
 	defer self.chainHeadSub.Unsubscribe()
 	defer self.chainSideSub.Unsubscribe()
 
@@ -280,16 +281,23 @@ func (self *worker) update() {
 			self.possibleUncles[ev.Block.Hash()] = ev.Block
 			self.uncleMu.Unlock()
 
-		// Handle TxPreEvent
-		case ev := <-self.txCh:
-			// Apply transaction to the pending state if we're not mining
+		// Handle NewTxsEvent
+		case ev := <-self.txsCh:
+			// Apply transactions to the pending state if we're not mining.
+			//
+			// Note all transactions received may not be continuous with transactions
+			// already included in the current mining block. These transactions will
+			// be automatically eliminated.
 			if atomic.LoadInt32(&self.mining) == 0 {
 				self.currentMu.Lock()
-				acc, _ := types.Sender(self.current.signer, ev.Tx)
-				txs := map[common.Address]types.Transactions{acc: {ev.Tx}}
+				txs := make(map[common.Address]types.Transactions)
+				for _, tx := range ev.Txs {
+					acc, _ := types.Sender(self.current.signer, tx)
+					txs[acc] = append(txs[acc], tx)
+				}
 				txset := types.NewTransactionsByPriceAndNonce(self.current.signer, txs)
-
 				self.current.commitTransactions(self.mux, txset, self.chain, self.coinbase)
+				self.updateSnapshot()
 				self.currentMu.Unlock()
 			} else {
 				// If we're mining, but nothing is being processed, wake on new transactions
@@ -299,7 +307,7 @@ func (self *worker) update() {
 			}
 
 		// System stopped
-		case <-self.txSub.Err():
+		case <-self.txsSub.Err():
 			return
 		case <-self.chainHeadSub.Err():
 			return
@@ -311,7 +319,6 @@ func (self *worker) update() {
 
 func (self *worker) wait() {
 	for {
-		mustCommitNewWork := true
 		for result := range self.recv {
 			atomic.AddInt32(&self.atWork, -1)
 
@@ -331,15 +338,12 @@ func (self *worker) wait() {
 			for _, log := range work.state.Logs() {
 				log.BlockHash = block.Hash()
 			}
+			self.currentMu.Lock()
 			stat, err := self.chain.WriteBlockWithState(block, work.receipts, work.state)
+			self.currentMu.Unlock()
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
-			}
-			// check if canon block and write transactions
-			if stat == core.CanonStatTy {
-				// implicit by posting ChainHeadEvent
-				mustCommitNewWork = false
 			}
 			// Broadcast the block and announce chain insertion event
 			self.mux.Post(core.NewMinedBlockEvent{Block: block})
@@ -355,10 +359,6 @@ func (self *worker) wait() {
 
 			// Insert the block into the set of pending ones to wait for confirmations
 			self.unconfirmed.Insert(block.NumberU64(), block.Hash())
-
-			if mustCommitNewWork {
-				self.commitNewWork()
-			}
 		}
 	}
 }
@@ -384,11 +384,11 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 	}
 	work := &Work{
 		config:    self.config,
-		signer:    types.NewEIP155Signer(self.config.ChainId),
+		signer:    types.NewEIP155Signer(self.config.ChainID),
 		state:     state,
-		ancestors: set.New(),
-		family:    set.New(),
-		uncles:    set.New(),
+		ancestors: mapset.NewSet(),
+		family:    mapset.NewSet(),
+		uncles:    mapset.NewSet(),
 		header:    header,
 		createdAt: time.Now(),
 	}
@@ -443,17 +443,9 @@ func (self *worker) commitNewWork() {
 		header.Coinbase = self.coinbase
 	}
 	if err := self.engine.Prepare(self.chain, header); err != nil {
-		if err.Error() != "invalid difficulty" {
-			//Stop the current mining work.
-			self.push(nil)
-		log.Error("Failed to prepare header for mining", "err", err)
-		return
-	}
-		//Stop the current mining work.
-		self.push(nil)
-		log.Debug("Failed to prepare header for mining", "err", err)
-		return
-	}
+			log.Error("Failed to prepare header for mining", "err", err)
+			return
+		}
 	// If we are care about TheDAO hard-fork check whether to override the extra-data or not
 	if daoBlock := self.config.DAOForkBlock; daoBlock != nil {
 		// Check whether the block is among the fork extra-override range
@@ -519,18 +511,18 @@ func (self *worker) commitNewWork() {
 			sign = false
 		}
 		if sign {
-		account := accounts.Account{Address: self.coinbase}
-		wallet, err := self.eth.AccountManager().Find(account)
-		if err != nil {
-			log.Error("Error to find miner account in keystore", "err", err)
-			return
+			account := accounts.Account{Address: self.coinbase}
+			wallet, err := self.eth.AccountManager().Find(account)
+			if err != nil {
+				log.Error("Error to find miner account in keystore", "err", err)
+				return
+			}
+			header.SigData, err = wallet.SignHashWithPassphrase(account, self.passphrase, header.HashSignatureData().Bytes())
+			if err != nil {
+				log.Error("Error to sign block header", "err", err)
+				return
+			}
 		}
-		header.SigData, err = wallet.SignHashWithPassphrase(account, self.passphrase, header.HashSignatureData().Bytes())
-		if err != nil {
-			log.Error("Error to sign block header", "err", err)
-			return
-		}
-	}
 	}
 	// Create the new block to seal with the consensus engine
 	//No uncle support
@@ -544,32 +536,48 @@ func (self *worker) commitNewWork() {
 		self.unconfirmed.Shift(work.Block.NumberU64() - 1)
 	}
 	self.push(work)
+	self.updateSnapshot()
 }
 
 func (self *worker) commitUncle(work *Work, uncle *types.Header) error {
 	hash := uncle.Hash()
-	if work.uncles.Has(hash) {
+	if work.uncles.Contains(hash) {
 		return fmt.Errorf("uncle not unique")
 	}
-	if !work.ancestors.Has(uncle.ParentHash) {
+	if !work.ancestors.Contains(uncle.ParentHash) {
 		return fmt.Errorf("uncle's parent unknown (%x)", uncle.ParentHash[0:4])
 	}
-	if work.family.Has(hash) {
+	if work.family.Contains(hash) {
 		return fmt.Errorf("uncle already in family (%x)", hash)
 	}
 	work.uncles.Add(uncle.Hash())
 	return nil
 }
 
+func (self *worker) updateSnapshot() {
+	self.snapshotMu.Lock()
+	defer self.snapshotMu.Unlock()
+
+	self.snapshotBlock = types.NewBlock(
+		self.current.header,
+		self.current.txs,
+		nil,
+		self.current.receipts,
+	)
+	self.snapshotState = self.current.state.Copy()
+}
+
 func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsByPriceAndNonce, bc *core.BlockChain, coinbase common.Address) {
-	gp := new(core.GasPool).AddGas(env.header.GasLimit)
+	if env.gasPool == nil {
+		env.gasPool = new(core.GasPool).AddGas(env.header.GasLimit)
+	}
 
 	var coalescedLogs []*types.Log
 
 	for {
 		// If we don't have enough gas for any further transactions then we're done
-		if gp.Gas() < params.TxGas {
-			log.Trace("Not enough gas for further transactions", "gp", gp)
+		if env.gasPool.Gas() < params.TxGas {
+			log.Trace("Not enough gas for further transactions", "have", env.gasPool, "want", params.TxGas)
 			break
 		}
 		// Retrieve the next transaction and abort if all done
@@ -593,7 +601,7 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 		// Start executing the transaction
 		env.state.Prepare(tx.Hash(), common.Hash{}, env.tcount)
 
-		err, logs := env.commitTransaction(tx, bc, coinbase, gp)
+		err, logs := env.commitTransaction(tx, bc, coinbase, env.gasPool)
 		switch err {
 		case core.ErrGasLimitReached:
 			// Pop the current out-of-gas transaction without shifting in the next from the account
