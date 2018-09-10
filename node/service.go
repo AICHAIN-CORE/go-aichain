@@ -41,9 +41,9 @@ type ServiceContext struct {
 // node is an ephemeral one, a memory database is returned.
 func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int) (ethdb.Database, error) {
 	if ctx.config.DataDir == "" {
-		return ethdb.NewMemDatabase()
+		return ethdb.NewMemDatabase(), nil
 	}
-	db, err := ethdb.NewLDBDatabase(ctx.config.resolvePath(name), cache, handles)
+	db, err := ethdb.NewLDBDatabase(ctx.config.ResolvePath(name), cache, handles)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int) (et
 // and if the user actually uses persistent storage. It will return an empty string
 // for emphemeral storage and the user's own input for absolute paths.
 func (ctx *ServiceContext) ResolvePath(path string) string {
-	return ctx.config.resolvePath(path)
+	return ctx.config.ResolvePath(path)
 }
 
 // Service retrieves a currently running service registered of a specific type.
@@ -75,11 +75,11 @@ type ServiceConstructor func(ctx *ServiceContext) (Service, error)
 //
 // Notes:
 //
-// â€¢ Service life-cycle management is delegated to the node. The service is allowed to
+// â€?Service life-cycle management is delegated to the node. The service is allowed to
 // initialize itself upon creation, but no goroutines should be spun up outside of the
 // Start method.
 //
-// â€¢ Restart logic is not required as the node will create a fresh instance
+// â€?Restart logic is not required as the node will create a fresh instance
 // every time a service is started.
 type Service interface {
 	// Protocols retrieves the P2P protocols the service wishes to start.
