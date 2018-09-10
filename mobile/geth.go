@@ -29,12 +29,13 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/eth/downloader"
 	"github.com/AICHAIN-CORE/go-aichain/ethclient"
 	"github.com/AICHAIN-CORE/go-aichain/ethstats"
+        "github.com/AICHAIN-CORE/go-aichain/internal/debug"
 	"github.com/AICHAIN-CORE/go-aichain/les"
 	"github.com/AICHAIN-CORE/go-aichain/node"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/nat"
 	"github.com/AICHAIN-CORE/go-aichain/params"
-	whisper "github.com/AICHAIN-CORE/go-aichain/whisper/whisperv5"
+	whisper "github.com/AICHAIN-CORE/go-aichain/whisper/whisperv6"
 )
 
 // NodeConfig represents the collection of configuration values to fine tune the Gait
@@ -72,6 +73,9 @@ type NodeConfig struct {
 
 	// WhisperEnabled specifies whether the node should run the Whisper protocol.
 	WhisperEnabled bool
+
+	// Listening address of pprof server.
+	PprofAddress string
 }
 
 // defaultNodeConfig contains the default node configuration values to use if all
@@ -107,10 +111,15 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 	if config.BootstrapNodes == nil || config.BootstrapNodes.Size() == 0 {
 		config.BootstrapNodes = defaultNodeConfig.BootstrapNodes
 	}
+
+	if config.PprofAddress != "" {
+		debug.StartPProf(config.PprofAddress)
+	}
+
 	// Create the empty networking stack
 	nodeConf := &node.Config{
 		Name:        clientIdentifier,
-		Version:     params.Version,
+		Version:     params.VersionWithMeta,
 		DataDir:     datadir,
 		KeyStoreDir: filepath.Join(datadir, "keystore"), // Mobile should never use internal keystores!
 		P2P: p2p.Config{
@@ -126,6 +135,8 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 	if err != nil {
 		return nil, err
 	}
+
+	debug.Memsize.Add("node", rawStack)
 
 	var genesis *core.Genesis
 	if config.EthereumGenesis != "" {
@@ -182,7 +193,7 @@ func (n *Node) Start() error {
 	return n.node.Start()
 }
 
-// Stop terminates a running node along with all it's services. In the node was
+// Stop terminates a running node along with all it's services. If the node was
 // not started, an error is returned.
 func (n *Node) Stop() error {
 	return n.node.Stop()
