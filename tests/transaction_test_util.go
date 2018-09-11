@@ -72,10 +72,9 @@ func (tt *TransactionTest) Run(config *params.ChainConfig) error {
 	if err := rlp.DecodeBytes(tt.json.RLP, tx); err != nil {
 		if tt.json.Transaction == nil {
 			return nil
-		} else {
+		}
 			return fmt.Errorf("RLP decoding failed: %v", err)
 		}
-	}
 	// Check sender derivation.
 	signer := types.MakeSigner(config, new(big.Int).SetUint64(uint64(tt.json.BlockNumber)))
 	sender, err := types.Sender(signer, tx)
