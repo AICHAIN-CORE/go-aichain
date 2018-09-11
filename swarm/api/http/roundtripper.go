@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/AICHAIN-CORE/go-aichain/log"
+	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
 )
 
 /*

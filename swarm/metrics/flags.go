@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"
-	"github.com/AICHAIN-CORE/go-aichain/log"
 	gethmetrics "github.com/AICHAIN-CORE/go-aichain/metrics"
 	"github.com/AICHAIN-CORE/go-aichain/metrics/influxdb"
+	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -80,6 +80,9 @@ func Setup(ctx *cli.Context) {
 			password     = ctx.GlobalString(metricsInfluxDBPasswordFlag.Name)
 			hosttag      = ctx.GlobalString(metricsInfluxDBHostTagFlag.Name)
 		)
+
+		// Start system runtime metrics collection
+		go gethmetrics.CollectProcessMetrics(2 * time.Second)
 
 		if enableExport {
 			log.Info("Enabling swarm metrics export to InfluxDB")
