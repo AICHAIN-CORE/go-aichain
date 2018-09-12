@@ -29,6 +29,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/ethdb"
 	"github.com/AICHAIN-CORE/go-aichain/log"
+        "github.com/AICHAIN-CORE/go-aichain/params"
 	"github.com/AICHAIN-CORE/go-aichain/rlp"
 	"github.com/AICHAIN-CORE/go-aichain/trie"
 )

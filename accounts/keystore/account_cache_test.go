@@ -27,10 +27,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AICHAIN-CORE/go-aichain/accounts"
-	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/cespare/cp"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/AICHAIN-CORE/go-aichain/accounts"
+	"github.com/AICHAIN-CORE/go-aichain/common"
 )
 
 var (

@@ -21,11 +21,11 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/AICHAIN-CORE/go-aichain/common"
+	"github.com/AICHAIN-CORE/go-aichain/core/types"
+	"github.com/AICHAIN-CORE/go-aichain/crypto/sha3"
+	"github.com/AICHAIN-CORE/go-aichain/ethdb"
+	"github.com/AICHAIN-CORE/go-aichain/rlp"
 )
 
 // Tests block header storage and retrieval operations.

@@ -21,10 +21,10 @@ import (
 	"encoding/binary"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/AICHAIN-CORE/go-aichain/common"
+	"github.com/AICHAIN-CORE/go-aichain/core/types"
+	"github.com/AICHAIN-CORE/go-aichain/log"
+	"github.com/AICHAIN-CORE/go-aichain/rlp"
 )
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.

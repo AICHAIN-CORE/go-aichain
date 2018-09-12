@@ -27,10 +27,10 @@ import (
 	"sync"
 	"time"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/log"
-	"gopkg.in/fatih/set.v0"
 )
 
 // Minimum amount of time between cache reloads. This limit applies if the platform does

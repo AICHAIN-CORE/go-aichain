@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+        mapset "github.com/deckarep/golang-set"
 	"github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
@@ -38,7 +39,6 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/event"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/params"
-	"gopkg.in/fatih/set.v0"
 )
 
 const (

@@ -19,10 +19,10 @@ package rawdb
 import (
 	"encoding/json"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/AICHAIN-CORE/go-aichain/common"
+	"github.com/AICHAIN-CORE/go-aichain/log"
+	"github.com/AICHAIN-CORE/go-aichain/params"
+	"github.com/AICHAIN-CORE/go-aichain/rlp"
 )
 
 // ReadDatabaseVersion retrieves the version number of the database.

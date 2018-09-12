@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/AICHAIN-CORE/go-aichain/log"
-	set "gopkg.in/fatih/set.v0"
 )
 
 // fileCache is a cache of files seen during scan of keystore.

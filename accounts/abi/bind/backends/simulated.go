@@ -31,6 +31,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/consensus/ethash"
 	"github.com/AICHAIN-CORE/go-aichain/core"
 	"github.com/AICHAIN-CORE/go-aichain/core/bloombits"
+        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/core/vm"

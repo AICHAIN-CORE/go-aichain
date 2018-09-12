@@ -29,14 +29,11 @@ package enr
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
 	"sort"
 
-	"github.com/AICHAIN-CORE/go-aichain/crypto"
-	"github.com/AICHAIN-CORE/go-aichain/crypto/sha3"
 	"github.com/AICHAIN-CORE/go-aichain/rlp"
 )
 
