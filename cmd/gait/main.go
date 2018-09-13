@@ -159,7 +159,7 @@ func init() {
 	// Initialize the CLI app and start Gait
 	app.Action = gait
 	app.HideVersion = true // we have a command to print the version
-	app.Copyright = "Copyright 2013-2017 The go-aichain Authors"
+	app.Copyright = "Copyright 2013-2018 The go-aichain Authors"
 	app.Commands = []cli.Command{
 		// See chaincmd.go:
 		initCommand,

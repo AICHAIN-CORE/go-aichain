@@ -20,6 +20,7 @@ package main
 import (
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/AICHAIN-CORE/go-aichain/log"
