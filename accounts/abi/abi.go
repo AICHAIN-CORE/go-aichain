@@ -1,5 +1,5 @@
 // Copyright 2018 The go-aichain Authors
-// Based on the go-ethereum
+// Based on the go-aichain
 // This file is part of the go-aichain library.
 //
 // The go-aichain library is free software: you can redistribute it and/or modify
