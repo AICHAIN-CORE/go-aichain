@@ -32,7 +32,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/params"
-	set "gopkg.in/fatih/set.v0"
+	mapset "github.com/deckarep/golang-set"
 )
 
 // Ethash proof-of-work protocol constants.

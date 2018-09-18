@@ -20,6 +20,7 @@ package aiconsensus
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"os"
@@ -413,6 +414,22 @@ func (c *AiConsensus) verifyHeader(chain consensus.ChainReader, header *types.He
 		return nil
 	}
 
+	if header.Number.Uint64() >= c.config.GasLimitSoftForkBlockNumber {
+		if params.TargetGasLimit == params.GenesisGasLimit {
+			params.TargetGasLimit = params.ForkGenesisGasLimit
+		}
+	}
+	if chain.Config().ChainID.Cmp(params.TestnetChainConfig.ChainID) != 0 {
+		if header.GasLimit > params.MaximumGasLimit {
+			return fmt.Errorf("invalid gasUsed: gasLimit %d, MaximumGasLimit %d", header.GasLimit, params.MaximumGasLimit)
+		}
+	}
+
+	// Verify that the gasUsed is <= gasLimit
+	if header.GasUsed > header.GasLimit {
+		return fmt.Errorf("invalid gasUsed: have %d, gasLimit %d", header.GasUsed, header.GasLimit)
+	}
+
 	var parent *types.Header
 	if len(parents) > 0 {
 		parent = parents[len(parents)-1]
@@ -468,6 +485,8 @@ func (c *AiConsensus) verifyHeader(chain consensus.ChainReader, header *types.He
 		expectedTime := new(big.Int).Add(parent.Time, new(big.Int).SetUint64(c.config.Period))
 		if header.Difficulty.Cmp(diffValidatorNoTurn) == 0 {
 			expectedTime = new(big.Int).Add(expectedTime, new(big.Int).SetUint64(uint64(validatorNoTurnDelay)))
+		} else if header.Difficulty.Cmp(diffPooledMinerInTurn) == 0 && parent.GasUsed*100/parent.GasLimit > 90 {
+			expectedTime = parent.Time
 		}
 		if header.Time.Cmp(expectedTime) < 0 {
 			return ErrInvalidTimestamp
@@ -562,7 +581,9 @@ func (c *AiConsensus) verifyCascadingFields(chain consensus.ChainReader, header 
 	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
 		return consensus.ErrUnknownAncestor
 	}
-	if parent.Time.Uint64()+c.config.Period > header.Time.Uint64() {
+	if header.Difficulty.Cmp(diffPooledMinerInTurn) != 0 && parent.Time.Uint64()+c.config.Period > header.Time.Uint64() {
+		return ErrInvalidTimestamp
+	} else if header.Difficulty.Cmp(diffPooledMinerInTurn) == 0 && parent.Time.Uint64() > header.Time.Uint64() {
 		return ErrInvalidTimestamp
 	}
 	// Retrieve the snapshot needed to verify this header and cache it
@@ -776,6 +797,11 @@ func (c *AiConsensus) verifySeal(chain consensus.ChainReader, header *types.Head
 // header for running the transactions on top.
 func (c *AiConsensus) Prepare(chain consensus.ChainReader, header *types.Header) error {
 	number := header.Number.Uint64()
+
+	if header.GasLimit > params.MaximumGasLimit {
+		header.GasLimit = params.MaximumGasLimit
+	}
+
 	if header.Number.Uint64() <= c.config.ForkBlockNumber {
 		return c.oldethash.Prepare(chain, header)
 	}
@@ -853,6 +879,9 @@ func (c *AiConsensus) Prepare(chain consensus.ChainReader, header *types.Header)
 			return consensus.ErrUnknownAncestor
 		}
 		header.Time = new(big.Int).Add(parent.Time, new(big.Int).SetUint64(c.config.Period))
+		if header.Difficulty.Cmp(diffPooledMinerInTurn) == 0 && parent.GasUsed*100/parent.GasLimit > 90 {
+			header.Time = parent.Time
+		}
 		if header.Time.Int64() < time.Now().Unix() {
 			header.Time = big.NewInt(time.Now().Unix())
 		}
@@ -862,6 +891,15 @@ func (c *AiConsensus) Prepare(chain consensus.ChainReader, header *types.Header)
 			// log.Info("Header for validator not in turn prepared origin: ", "header time", header.Time)
 			header.Time = new(big.Int).Add(header.Time, delay)
 			// log.Info("Header for validator not in turn prepared delay:", "delay", delay, "header time", header.Time)
+		}
+		//the block with GasLimitForkBlockNumber must be the validator block.
+		if header.Number.Uint64() >= c.config.GasLimitSoftForkBlockNumber {
+			if params.TargetGasLimit == params.GenesisGasLimit {
+				params.TargetGasLimit = params.ForkGenesisGasLimit
+			}
+		}
+		if header.Number.Uint64() == c.config.GasLimitSoftForkBlockNumber {
+			header.GasLimit = params.TargetGasLimit
 		}
 	} else {
 		//PoW block
