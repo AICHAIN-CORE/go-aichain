@@ -490,7 +490,7 @@ func maybeSkipArchive(env build.Environment) {
 func doDebianSource(cmdline []string) {
 	var (
 		signer  = flag.String("signer", "", `Signing key name, also used as package author`)
-		upload  = flag.String("upload", "", `Where to upload the source package (usually "ppa:ethereum/ethereum")`)
+		upload  = flag.String("upload", "", `Where to upload the source package (usually "ppa:aichain/aichain")`)
 		workdir = flag.String("workdir", "", `Output directory for packages (uses temp dir if unset)`)
 		now     = time.Now()
 	)
@@ -590,7 +590,7 @@ func (d debExecutable) Package() string {
 func newDebMetadata(distro, author string, env build.Environment, t time.Time, name string, version string, exes []debExecutable) debMetadata {
 	if author == "" {
 		// No signing key, use default author.
-		author = "AICHAIN Builds <fjl@aichain.org>"
+		author = "AICHAIN Builds <contact@aichain.me>"
 	}
 	return debMetadata{
 		PackageName: name,
@@ -642,9 +642,9 @@ func (meta debMetadata) ExeName(exe debExecutable) string {
 }
 
 // EthereumSwarmPackageName returns the name of the swarm package based on
-// environment, e.g. "ethereum-swarm-unstable", or "ethereum-swarm".
-// This is needed so that we make sure that "ethereum" package,
-// depends on and installs "ethereum-swarm"
+// environment, e.g. "aichain-swarm-unstable", or "aichain-swarm".
+// This is needed so that we make sure that "aichain" package,
+// depends on and installs "aichain-swarm"
 func (meta debMetadata) EthereumSwarmPackageName() string {
 	if isUnstableBuild(meta.Env) {
 		return debSwarm.Name + "-unstable"

@@ -4,15 +4,15 @@ Priority: extra
 Maintainer: {{.Author}}
 Build-Depends: debhelper (>= 8.0.0), golang-1.10
 Standards-Version: 3.9.5
-Homepage: https://ethereum.org
-Vcs-Git: git://github.com/ethereum/go-ethereum.git
-Vcs-Browser: https://github.com/ethereum/go-ethereum
+Homepage: https://aichain.me
+Vcs-Git: git://github.com/AICHAIN-CORE/go-aichain.git
+Vcs-Browser: https://github.com/AICHAIN-CORE/go-aichain
 
 Package: {{.Name}}
 Architecture: any
 Depends: ${misc:Depends}, {{.EthereumSwarmPackageName}}, {{.ExeList}}
-Description: Meta-package to install geth, swarm, and other tools
- Meta-package to install geth, swarm and other tools
+Description: Meta-package to install gait, swarm, and other tools
+ Meta-package to install gait, swarm and other tools
 
 {{range .Executables}}
 Package: {{$.ExeName .}}

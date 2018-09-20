@@ -35,15 +35,15 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethereum/go-aichain/cmd/utils"
-	"github.com/ethereum/go-aichain/common"
-	"github.com/ethereum/go-aichain/crypto"
-	"github.com/ethereum/go-aichain/log"
-	"github.com/ethereum/go-aichain/node"
-	"github.com/ethereum/go-aichain/rpc"
-	"github.com/ethereum/go-aichain/signer/core"
-	"github.com/ethereum/go-aichain/signer/rules"
-	"github.com/ethereum/go-aichain/signer/storage"
+	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"
+	"github.com/AICHAIN-CORE/go-aichain/common"
+	"github.com/AICHAIN-CORE/go-aichain/crypto"
+	"github.com/AICHAIN-CORE/go-aichain/log"
+	"github.com/AICHAIN-CORE/go-aichain/node"
+	"github.com/AICHAIN-CORE/go-aichain/rpc"
+	"github.com/AICHAIN-CORE/go-aichain/signer/core"
+	"github.com/AICHAIN-CORE/go-aichain/signer/rules"
+	"github.com/AICHAIN-CORE/go-aichain/signer/storage"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -170,7 +170,7 @@ remove any stored credential for that address (keyfile)
 
 func init() {
 	app.Name = "Clef"
-	app.Usage = "Manage Ethereum account operations"
+	app.Usage = "Manage AICHAIN account operations"
 	app.Flags = []cli.Flag{
 		logLevelFlag,
 		keystoreFlag,

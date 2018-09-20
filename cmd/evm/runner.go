@@ -23,10 +23,9 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	goruntime "runtime"
 	"runtime/pprof"
 	"time"
-
-	goruntime "runtime"
 
 	"github.com/AICHAIN-CORE/go-aichain/cmd/evm/internal/compiler"
 	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"

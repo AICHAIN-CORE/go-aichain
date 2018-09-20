@@ -530,7 +530,7 @@ var (
 	MetricsInfluxDBDatabaseFlag = cli.StringFlag{
 		Name:  "metrics.influxdb.database",
 		Usage: "InfluxDB database name to push reported metrics to",
-		Value: "geth",
+		Value: "gait",
 	}
 	MetricsInfluxDBUsernameFlag = cli.StringFlag{
 		Name:  "metrics.influxdb.username",
@@ -1204,7 +1204,7 @@ func SetupMetrics(ctx *cli.Context) {
 
 		if enableExport {
 			log.Info("Enabling metrics export to InfluxDB")
-			go influxdb.InfluxDBWithTags(metrics.DefaultRegistry, 10*time.Second, endpoint, database, username, password, "geth.", map[string]string{
+			go influxdb.InfluxDBWithTags(metrics.DefaultRegistry, 10*time.Second, endpoint, database, username, password, "gait.", map[string]string{
 				"host": hosttag,
 			})
 		}

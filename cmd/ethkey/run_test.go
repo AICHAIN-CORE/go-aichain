@@ -21,8 +21,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/AICHAIN-CORE/go-aichain/internal/cmdtest"
 	"github.com/docker/docker/pkg/reexec"
+        "github.com/AICHAIN-CORE/go-aichain/internal/cmdtest"
 )
 
 type testEthkey struct {
