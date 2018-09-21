@@ -24,6 +24,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/core"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/ethdb"
