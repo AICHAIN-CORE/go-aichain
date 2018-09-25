@@ -488,7 +488,14 @@ func (c *AiConsensus) verifyHeader(chain consensus.ChainReader, header *types.He
 		} else if header.Difficulty.Cmp(diffPooledMinerInTurn) == 0 && parent.GasUsed*100/parent.GasLimit > 90 {
 			expectedTime = parent.Time
 		}
+		//If there is no tx in block, we should wait for more time.
+		if (header.Number.Uint64() >= c.config.ExtraPeriodForkBlockNumber) &&
+			(header.TxHash.Hex() == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421") {
+			expectedTime = new(big.Int).Add(expectedTime, new(big.Int).SetUint64(c.config.ExtraPeriod))
+		}
 		if header.Time.Cmp(expectedTime) < 0 {
+			log.Error("Invalid time", "number", number, "hash", header.TxHash, "parent time", parent.Time,
+				"header time", header.Time, "expected time", expectedTime)
 			return ErrInvalidTimestamp
 		}
 		// Checkpoint blocks need to enforce zero beneficiary
@@ -547,6 +554,12 @@ func (c *AiConsensus) verifyHeader(chain consensus.ChainReader, header *types.He
 		expectedTime = new(big.Int).Add(expectedTime, new(big.Int).SetUint64(uint64(notPooledMinerDelay)))
 	} else if header.Difficulty.Cmp(diffPooledMinerNoTurnPow) == 0 {
 		expectedTime = new(big.Int).Add(expectedTime, new(big.Int).SetUint64(uint64(pooledMinerNoTurnDelay)))
+	}
+
+	//If there is no tx in block, we should wait for more time.
+	if (header.Number.Uint64() >= c.config.ExtraPeriodForkBlockNumber) &&
+		(header.Difficulty.Cmp(diffPow) != 0) && (header.TxHash.Hex() == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421") {
+		expectedTime = new(big.Int).Add(expectedTime, new(big.Int).SetUint64(c.config.ExtraPeriod))
 	}
 
 	if header.Time.Cmp(expectedTime) < 0 {
@@ -958,6 +971,11 @@ func (c *AiConsensus) Finalize(chain consensus.ChainReader, header *types.Header
 		state.AddBalance(header.Coinbase, blockReward)
 	} else if header.Difficulty.Cmp(diffValidatorInTurn) != 0 && header.Difficulty.Cmp(diffValidatorNoTurn) != 0 {
 		return nil, errInvalidDifficulty
+	}
+	//If there is no tx in block, we should wait for more time.
+	if (header.Number.Uint64() >= c.config.ExtraPeriodForkBlockNumber) &&
+		(header.Difficulty.Cmp(diffPow) != 0) && (len(txs) == 0) {
+		header.Time = new(big.Int).Add(header.Time, new(big.Int).SetUint64(c.config.ExtraPeriod))
 	}
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
