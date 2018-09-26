@@ -55,8 +55,8 @@ var _indexHtml = []byte(`<!DOCTYPE html>
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Go Ethereum Dashboard</title>
-        <link rel="shortcut icon" type="image/ico" href="https://ethereum.org/favicon.ico" />
+        <title>Go AICHAIN Dashboard</title>
+        <link rel="shortcut icon" type="image/ico" href="https://aichain.me/favicon.ico" />
         <style>
             ::-webkit-scrollbar {
                 width: 16px;
@@ -29962,7 +29962,7 @@ var _bundleJs = []byte((((((((((`!function(modules) {
                     color: "inherit",
                     noWrap: !0,
                     className: classes.title
-                }, "Go Ethereum Dashboard")));
+                }, "Go AICHAIN Dashboard")));
             }
         } ]), Header;
     }(_react.Component);
@@ -32721,13 +32721,13 @@ var _bundleJs = []byte((((((((((`!function(modules) {
                     color: "inherit"
                 }, _react2.default.createElement("span", {
                     style: _common.styles.light
-                }, "Geth"), " ", general.version), general.commit && _react2.default.createElement(_Typography2.default, {
+                }, "Gait"), " ", general.version), general.commit && _react2.default.createElement(_Typography2.default, {
                     type: "caption",
                     color: "inherit"
                 }, _react2.default.createElement("span", {
                     style: _common.styles.light
                 }, "Commit "), _react2.default.createElement("a", {
-                    href: "https://github.com/ethereum/go-ethereum/commit/" + general.commit,
+                    href: "https://github.com/AICHAIN-CORE/go-aichain/commit/" + general.commit,
                     target: "_blank",
                     style: {
                         color: "inherit",
