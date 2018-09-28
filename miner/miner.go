@@ -111,7 +111,8 @@ out:
 
 func (self *Miner) Start(coinbase common.Address) {
 	atomic.StoreInt32(&self.shouldStart, 1)
-	self.SetEtherbase(coinbase)
+	self.worker.setEtherbase(coinbase)
+	self.coinbase = coinbase
 
 	stateDb, err := self.eth.BlockChain().StateAt(self.eth.BlockChain().CurrentBlock().Root())
 	if err == nil {

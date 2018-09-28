@@ -53,6 +53,10 @@ var (
 			EthashDifficulty:     big.NewInt(10000000),
 			ExtraData:            hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000000a9bcaccef0d131b37e51c8ffcf5bb1651ecc405f6cc874e476c25c1fdc4c601829f17c8b3b06cbd773cf4f94d5062c590bceecfd0d446114e09a86b4441ae7572a2a94111403167bb4a2d4f4ed3e74cfebf670c598ca813d4888b7585db462391614b07256086cf6486057b33d9f23626076becd26034362e1762aeb5f01166b2f694f4fb19fb272377e38ab5f714bd29a48423ea8e96ef7e35df8e6876aabc0487e85216ea4365634b7ac29b70ea8baeeadc52e73f0eee87efb2d3583210ecf42a03d5bead8cb7300a58971525fb7c8ef19b3faa18c6156ec5ae4a3f705c8e6238575ba6d99ae608e93c5a4894bba336e568fca5fae3784df77b91be85ab990179936f3037f2e66315410d58d278124918f79914d9e4b497287fd48fff8f6feae623a26c49e08a871defe4f774dcdcc10dab8f45643a44070a3f0cb2e89d48aee35cec145d3ce061dc99fe2fae8aad527fefdabccb01855499673b57592322621904c51c31a84bd7be6d7e39c74c74710e25cee1931d2fed7ab0f20266f6361f6d336218a52698ab48ab21ec9b239319820000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			ForkBlockNumber:      328800,
+			GasLimitSoftForkBlockNumber: 5204928,
+			ExtraPeriod:                 4,
+			ExtraPeriodForkBlockNumber:  8145252,
+			FixExtraPeriodForkBlockNumber: 8258532,
 		},
 	}
 
@@ -79,6 +83,10 @@ var (
 			EthashDifficulty:     big.NewInt(10000),
 			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000043fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f34eae4b8e5d2bed9cddfd6b309f965a27759bad96c40cee6c6692307dda2ff1a33860855fc3b39f1004beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			ForkBlockNumber:      360000,
+			GasLimitSoftForkBlockNumber: 5204928,
+			ExtraPeriod:                 4,
+			ExtraPeriodForkBlockNumber:  8145252,
+			FixExtraPeriodForkBlockNumber: 8258532,
 		},
 	}
 
@@ -102,7 +110,7 @@ var (
 
 	// AiConsensusChainConfig contains the chain parameters to run a node on the Ai consensus network.
 	AiConsensusChainConfig = &ChainConfig{
-		ChainId:             big.NewInt(4),
+		ChainID:             big.NewInt(4),
 		HomesteadBlock:      big.NewInt(1),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      false,
@@ -121,6 +129,11 @@ var (
 			VoteEpoch:            30000,
 			EthashDifficulty:     big.NewInt(10000),
 			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000043fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f34eae4b8e5d2bed9cddfd6b309f965a27759bad96c40cee6c6692307dda2ff1a33860855fc3b39f1004beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+			ForkBlockNumber:             328800,
+			GasLimitSoftForkBlockNumber: 5204928,
+			ExtraPeriod:                 4,
+			ExtraPeriodForkBlockNumber:  8145252,
+			FixExtraPeriodForkBlockNumber: 8258532,
 		},
 	}
 
@@ -140,6 +153,10 @@ var (
 			EthashDifficulty:     big.NewInt(10000000),
 			ExtraData:            hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000000a9bcaccef0d131b37e51c8ffcf5bb1651ecc405f6cc874e476c25c1fdc4c601829f17c8b3b06cbd773cf4f94d5062c590bceecfd0d446114e09a86b4441ae7572a2a94111403167bb4a2d4f4ed3e74cfebf670c598ca813d4888b7585db462391614b07256086cf6486057b33d9f23626076becd26034362e1762aeb5f01166b2f694f4fb19fb272377e38ab5f714bd29a48423ea8e96ef7e35df8e6876aabc0487e85216ea4365634b7ac29b70ea8baeeadc52e73f0eee87efb2d3583210ecf42a03d5bead8cb7300a58971525fb7c8ef19b3faa18c6156ec5ae4a3f705c8e6238575ba6d99ae608e93c5a4894bba336e568fca5fae3784df77b91be85ab990179936f3037f2e66315410d58d278124918f79914d9e4b497287fd48fff8f6feae623a26c49e08a871defe4f774dcdcc10dab8f45643a44070a3f0cb2e89d48aee35cec145d3ce061dc99fe2fae8aad527fefdabccb01855499673b57592322621904c51c31a84bd7be6d7e39c74c74710e25cee1931d2fed7ab0f20266f6361f6d336218a52698ab48ab21ec9b239319820000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			ForkBlockNumber:      328800,
+			GasLimitSoftForkBlockNumber: 5204928,
+			ExtraPeriod:                 4,
+			ExtraPeriodForkBlockNumber:  8137200,
+			FixExtraPeriodForkBlockNumber: 8258532,
 		}}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
@@ -164,6 +181,11 @@ var (
 			VoteEpoch:            30000,
 			EthashDifficulty:     big.NewInt(10000),
 			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000043fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f34eae4b8e5d2bed9cddfd6b309f965a27759bad96c40cee6c6692307dda2ff1a33860855fc3b39f1004beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+			ForkBlockNumber:             328800,
+			GasLimitSoftForkBlockNumber: 5204928,
+			ExtraPeriod:                 4,
+			ExtraPeriodForkBlockNumber:  8145252,
+			FixExtraPeriodForkBlockNumber: 8258532,
 		}}
 
 	//TestChainConfig
@@ -178,6 +200,10 @@ var (
 			EthashDifficulty:     big.NewInt(10000),
 			ExtraData:            hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000023fa63f6e587975e93670ace6ab5a71061c1dafa47acbcffa2cccf1ce3e8631e7620a94823605e4f304beb845896ae589fbee97f37e3bff49cb68a3aa6cae15f60311b0990bd3e8545d1b19431094001948e0c1c6aaa39a5cf563e09e941e9c262c87b624007a7500fbb6a7c86fd3c272c77e6cf849af65d5ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 			ForkBlockNumber:      360000,
+			GasLimitSoftForkBlockNumber: 5204928,
+			ExtraPeriod:                 4,
+			ExtraPeriodForkBlockNumber:  8145252,
+			FixExtraPeriodForkBlockNumber: 8258532,
 		}}
 	TestRules = TestChainConfig.Rules(new(big.Int))
 )
@@ -235,12 +261,16 @@ type AiConsensusConfig struct {
 	MaxValidatorNumber   int      `json:"max-validator-number"`   // Max number of Validator allowed
 	MaxPooledMinerNumber int      `json:"max-pooledminer-number"` // Max number of Pooled miner allowed
 	Period               uint64   `json:"period"`                 // Number of seconds between blocks to enforce
+	ExtraPeriod          uint64   `json:"extra-period"`                  // Extra Number of seconds between blocks to enforce, if there is no tx in blocks.
 	BlockValidNumber     uint64   `json:"block-valid-number"`     // Number of block to verify
 	Epoch                uint64   `json:"epoch"`                  // Epoch length to reset checkpoint
 	VoteEpoch            uint64   `json:"vote-epoch"`             // Epoch length to reset votes
 	EthashDifficulty     *big.Int `json:"ethash-difficulty"`      // Difficulty to ethash mine
 	ExtraData            []byte   `json:"extra-data"`             //Extra data for genesis
 	ForkBlockNumber      uint64   `json:"fork-blockNumber"`       //Block number to start engine fork
+	GasLimitSoftForkBlockNumber uint64   `json:"gaslimit-fork-blockNumber"`     //Block number to gas limit fork
+	ExtraPeriodForkBlockNumber  uint64   `json:"extra-period-fork-blockNumber"` //Block number to extra period
+	FixExtraPeriodForkBlockNumber uint64   `json:"fix-extra-period-fork-blockNumber"` //Block number to fix extra period
 	Standalone           bool     `json:"standalone"`             //If the engine is standalone
 }
 
@@ -330,7 +360,7 @@ func (c *ChainConfig) CheckMinerAccountAit(num *big.Int) bool {
 }
 
 func (c *ChainConfig) DefaultCoinbase() string {
-	if c.ChainId.Cmp(MainnetChainConfig.ChainId) == 0 {
+	if c.ChainID.Cmp(MainnetChainConfig.ChainID) == 0 {
 		return "ai6846e953b9594b602bab319d1114836c2b050491"
 	}
 	return "aib135fb747599b830e2110b56e3c76496dc412c54"

@@ -19,13 +19,15 @@ package params
 import "math/big"
 
 var (
-	TargetGasLimit = GenesisGasLimit // The artificial target
+	TargetGasLimit uint64 = ForkGenesisGasLimit // The artificial target
 )
 
 const (
 	GasLimitBoundDivisor uint64 = 1024    // The bound divisor of the gas limit, used in update calculations.
 	MinGasLimit          uint64 = 5000    // Minimum the gas limit may ever be.
 	GenesisGasLimit      uint64 = 4712388 // Gas limit of the Genesis block.
+	ForkGenesisGasLimit  uint64 = (4712388 * 10) // Gas limit of the Genesis block.
+	MaximumGasLimit      uint64 = (4712388 * 50) // Minimum gas limit of block.
 
 	MaximumExtraDataSize  uint64 = 32    // Maximum size extra data may be after Genesis.
 	MaximumSigDataSize    uint64 = 128   // Maximum size sig data may be after Genesis.

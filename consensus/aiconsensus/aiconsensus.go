@@ -489,8 +489,8 @@ func (c *AiConsensus) verifyHeader(chain consensus.ChainReader, header *types.He
 			expectedTime = parent.Time
 		}
 		//If there is no tx in block, we should wait for more time.
-		if (header.Number.Uint64() >= c.config.ExtraPeriodForkBlockNumber) &&
-			(header.TxHash.Hex() == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421") {
+		if (header.Number.Uint64() >= c.config.FixExtraPeriodForkBlockNumber) &&
+			(header.TxHash.Hex() == "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421") {
 			expectedTime = new(big.Int).Add(expectedTime, new(big.Int).SetUint64(c.config.ExtraPeriod))
 		}
 		if header.Time.Cmp(expectedTime) < 0 {
@@ -557,8 +557,8 @@ func (c *AiConsensus) verifyHeader(chain consensus.ChainReader, header *types.He
 	}
 
 	//If there is no tx in block, we should wait for more time.
-	if (header.Number.Uint64() >= c.config.ExtraPeriodForkBlockNumber) &&
-		(header.Difficulty.Cmp(diffPow) != 0) && (header.TxHash.Hex() == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421") {
+	if (header.Number.Uint64() >= c.config.FixExtraPeriodForkBlockNumber) &&
+		(header.Difficulty.Cmp(diffPow) != 0) && (header.TxHash.Hex() == "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421") {
 		expectedTime = new(big.Int).Add(expectedTime, new(big.Int).SetUint64(c.config.ExtraPeriod))
 	}
 
