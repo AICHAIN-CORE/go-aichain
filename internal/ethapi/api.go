@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-        "github.com/davecgh/go-spew/spew"
 	"github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/accounts/keystore"
 	"github.com/AICHAIN-CORE/go-aichain/common"
@@ -42,6 +41,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/params"
 	"github.com/AICHAIN-CORE/go-aichain/rlp"
 	"github.com/AICHAIN-CORE/go-aichain/rpc"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -806,7 +806,6 @@ func RPCMarshalBlock(b *types.Block, inclTx bool, fullTx bool) (map[string]inter
 		"stateRoot":        head.Root,
 		"miner":            head.Coinbase,
 		"difficulty":       (*hexutil.Big)(head.Difficulty),
-		"totalDifficulty":  (*hexutil.Big)(s.b.GetTd(b.Hash())),
 		"extraData":        hexutil.Bytes(head.Extra),
 		"size":             hexutil.Uint64(b.Size()),
 		"gasLimit":         hexutil.Uint64(head.GasLimit),

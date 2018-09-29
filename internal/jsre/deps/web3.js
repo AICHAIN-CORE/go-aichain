@@ -5725,7 +5725,7 @@ module.exports = Personal;
 */
 /** @file shh.js
  * @authors:
- *   Fabian Vogelsteller <fabian@aichain.org>
+ *   Fabian Vogelsteller <fabian@ethereum.org>
  *   Marek Kotewicz <marek@ethcore.io>
  * @date 2017
  */

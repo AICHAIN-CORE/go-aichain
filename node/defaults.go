@@ -24,6 +24,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/nat"
+	"github.com/AICHAIN-CORE/go-aichain/rpc"
 )
 
 const (

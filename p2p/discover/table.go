@@ -25,7 +25,6 @@ package discover
 import (
 	crand "crypto/rand"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	mrand "math/rand"
 	"net"
