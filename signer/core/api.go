@@ -1,18 +1,18 @@
-// Copyright 2018 The go-ethereum Authors
-// This file is part of go-ethereum.
+// Copyright 2018 The go-aichain Authors
+// This file is part of go-aichain.
 //
-// go-ethereum is free software: you can redistribute it and/or modify
+// go-aichain is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// go-ethereum is distributed in the hope that it will be useful,
+// go-aichain is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
+// along with go-aichain. If not, see <http://www.gnu.org/licenses/>.
 
 package core
 
@@ -366,7 +366,7 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 
 }
 
-// Sign calculates an Ethereum ECDSA signature for:
+// Sign calculates an AICHAIN ECDSA signature for:
 // keccack256("\x19Ethereum Signed Message:\n" + len(message) + message))
 //
 // Note, the produced signature conforms to the secp256k1 curve R, S and V values,
@@ -374,7 +374,7 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 //
 // The key used to calculate the signature is decrypted with the given password.
 //
-// https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_sign
+// https://github.com/AICHAIN-CORE/go-aichain/wiki/Management-APIs#personal_sign
 func (api *SignerAPI) Sign(ctx context.Context, addr common.MixedcaseAddress, data hexutil.Bytes) (hexutil.Bytes, error) {
 	sighash, msg := SignHash(data)
 	// We make the request prior to looking up if we actually have the account, to prevent
@@ -413,13 +413,13 @@ func (api *SignerAPI) Sign(ctx context.Context, addr common.MixedcaseAddress, da
 // Note, the signature must conform to the secp256k1 curve R, S and V values, where
 // the V value must be be 27 or 28 for legacy reasons.
 //
-// https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_ecRecover
+// https://github.com/AICHAIN-CORE/go-aichain/wiki/Management-APIs#personal_ecRecover
 func (api *SignerAPI) EcRecover(ctx context.Context, data, sig hexutil.Bytes) (common.Address, error) {
 	if len(sig) != 65 {
 		return common.Address{}, fmt.Errorf("signature must be 65 bytes long")
 	}
 	if sig[64] != 27 && sig[64] != 28 {
-		return common.Address{}, fmt.Errorf("invalid Ethereum signature (V is not 27 or 28)")
+		return common.Address{}, fmt.Errorf("invalid AICHAIN signature (V is not 27 or 28)")
 	}
 	sig[64] -= 27 // Transform yellow paper V from 27/28 to 0/1
 	hash, _ := SignHash(data)
