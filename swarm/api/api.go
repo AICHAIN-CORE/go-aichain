@@ -221,7 +221,7 @@ func (m *MultiResolver) SetNameHash(nameHash func(string) common.Hash) {
 /*
 API implements webserver/file system related content storage and retrieval
 on top of the FileStore
-it is the public interface of the FileStore which is included in the ethereum stack
+it is the public interface of the FileStore which is included in the aichain stack
 */
 type API struct {
 	resource  *mru.Handler
