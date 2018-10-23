@@ -1,10 +1,10 @@
 ## Swarm
 
-[https://swarm.ethereum.org](https://swarm.ethereum.org)
+[https://swarm.aichain.me](https://swarm.aichain.me)
 
-Swarm is a distributed storage platform and content distribution service, a native base layer service of the ethereum web3 stack. The primary objective of Swarm is to provide a decentralized and redundant store for dapp code and data as well as block chain and state data. Swarm is also set out to provide various base layer services for web3, including node-to-node messaging, media streaming, decentralised database services and scalable state-channel infrastructure for decentralised service economies.
+Swarm is a distributed storage platform and content distribution service, a native base layer service of the aichain web3 stack. The primary objective of Swarm is to provide a decentralized and redundant store for dapp code and data as well as block chain and state data. Swarm is also set out to provide various base layer services for web3, including node-to-node messaging, media streaming, decentralised database services and scalable state-channel infrastructure for decentralised service economies.
 
-[![Travis](https://travis-ci.org/ethereum/go-ethereum.svg?branch=master)](https://travis-ci.org/ethereum/go-ethereum)
+[![Travis](https://travis-ci.org/aichain/go-aichain.svg?branch=master)](https://travis-ci.org/aichain/go-aichain)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ethersphere/orange-lounge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 
@@ -12,9 +12,9 @@ Swarm is a distributed storage platform and content distribution service, a nati
 
 Building Swarm requires Go (version 1.10 or later).
 
-    go get -d github.com/ethereum/go-ethereum
+    go get -d github.com/AICHAIN-CORE/go-aichain
 
-    go install github.com/ethereum/go-ethereum/cmd/swarm
+    go install github.com/AICHAIN-CORE/go-aichain/cmd/swarm
 
 
 ## Documentation
