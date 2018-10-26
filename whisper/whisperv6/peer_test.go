@@ -21,11 +21,12 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	mrand "math/rand"
-	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"net"
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/common/hexutil"
@@ -173,8 +174,6 @@ func initialize(t *testing.T) {
 	initBloom(t)
 
 	var err error
-	ip := net.IPv4(127, 0, 0, 1)
-	port0 := 30323
 
 	for i := 0; i < NumNodes; i++ {
 		var node TestNode
@@ -199,17 +198,7 @@ func initialize(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed convert the key: %s.", keys[i])
 		}
-		port := port0 + i
-		addr := fmt.Sprintf(":%d", port) // e.g. ":30323"
 		name := common.MakeName("whisper-go", "2.0")
-		var peers []*discover.Node
-		if i > 0 {
-			peerNodeID := nodes[i-1].id
-			peerPort := uint16(port - 1)
-			peerNode := discover.PubkeyID(&peerNodeID.PublicKey)
-			peer := discover.NewNode(peerNode, ip, peerPort, peerPort)
-			peers = append(peers, peer)
-		}
 
 		node.server = &p2p.Server{
 			Config: p2p.Config{
@@ -217,22 +206,28 @@ func initialize(t *testing.T) {
 				MaxPeers:       NumNodes/2 + 1,
 				Name:           name,
 				Protocols:      node.shh.Protocols(),
-				ListenAddr:     addr,
+				ListenAddr: "127.0.0.1:0",
 				NAT:            nat.Any(),
-				BootstrapNodes: peers,
-				StaticNodes:    peers,
-				TrustedNodes:   peers,
 			},
 		}
+
+		go startServer(t, node.server)
 
 		nodes[i] = &node
 	}
 
-	for i := 0; i < NumNodes; i++ {
-		go startServer(t, nodes[i].server)
-	}
-
 	waitForServersToStart(t)
+
+	for i := 0; i < NumNodes; i++ {
+		for j := 0; j < i; j++ {
+			peerNodeId := nodes[j].id
+			address, _ := net.ResolveTCPAddr("tcp", nodes[j].server.ListenAddr)
+			peerPort := uint16(address.Port)
+			peerNode := discover.PubkeyID(&peerNodeId.PublicKey)
+			peer := discover.NewNode(peerNode, address.IP, peerPort, peerPort)
+			nodes[i].server.AddPeer(peer)
+		}
+	}
 }
 
 func startServer(t *testing.T, s *p2p.Server) {
