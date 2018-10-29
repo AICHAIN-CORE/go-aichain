@@ -131,6 +131,7 @@ type ContractCaller interface {
 
 // FilterQuery contains options for contract log filtering.
 type FilterQuery struct {
+	BlockHash *common.Hash     // used by eth_getLogs, return logs only from block with this hash
 	FromBlock *big.Int         // beginning of the queried range, nil means genesis block
 	ToBlock   *big.Int         // end of the range, nil means latest block
 	Addresses []common.Address // restricts matches to events created by specific contracts
@@ -144,7 +145,7 @@ type FilterQuery struct {
 	// {} or nil          matches any topic list
 	// {{A}}              matches topic A in first position
 	// {{}, {B}}          matches any topic in first position, B in second position
-	// {{A}}, {B}}        matches topic A in first position, B in second position
+	// {{A}, {B}}         matches topic A in first position, B in second position
 	// {{A, B}}, {C, D}}  matches topic (A OR B) in first position, (C OR D) in second position
 	Topics [][]common.Hash
 }
@@ -179,7 +180,7 @@ type GasPricer interface {
 
 // A PendingStateReader provides access to the pending state, which is the result of all
 // known executable transactions which have not yet been included in the blockchain. It is
-// commonly used to display the result of ’unconfirmed’ actions (e.g. wallet value
+// commonly used to display the result of ’unconfirmed�?actions (e.g. wallet value
 // transfers) initiated by the user. The PendingNonceAt operation is a good way to
 // retrieve the next available transaction nonce for a specific account.
 type PendingStateReader interface {

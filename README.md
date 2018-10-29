@@ -2,15 +2,8 @@
 
 Official golang implementation of the AICHAIN protocol.
 
-[![API Reference](
-https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667
-)](https://godoc.org/github.com/AICHAIN-CORE/go-aichain)
-[![Go Report Card](https://goreportcard.com/badge/github.com/AICHAIN-CORE/go-aichain)](https://goreportcard.com/report/github.com/AICHAIN-CORE/go-aichain)
-[![Travis](https://travis-ci.org/aichain/go-aichain.svg?branch=master)](https://travis-ci.org/aichain/go-aichain)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/aichain/go-aichain?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-
 Automated builds are available for stable releases and the unstable master branch.
-Binary archives are published at https://gait.aichain.org/downloads/.
+Binary archives are published at https://github.com/AICHAIN-CORE/go-aichain/releases.
 
 ## Building the source
 
@@ -275,11 +268,11 @@ The testnet blockchain explorer:
 https://testnetscan.aichain.me/
 
 The mainnet blockchain explorer:
-comming soon...
+https://scan.aichain.me/
 
 #### AICHAIN node current version
 
-Current version: 1.0.2
+Current version: 1.0.3
 The testnet and mainnet both are running online, but only testnet is ready for open to public.
 But the people still can use the release package to connect to testnet and mainnet.
 
