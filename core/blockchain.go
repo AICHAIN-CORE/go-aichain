@@ -18,18 +18,27 @@
 package core
 
 import (
+	"bytes"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	mrand "math/rand"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
+	cmath "github.com/AICHAIN-CORE/go-aichain/common/math"
 	"github.com/AICHAIN-CORE/go-aichain/common/mclock"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
+	"github.com/AICHAIN-CORE/go-aichain/consensus/aiconsensus"
         "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
@@ -39,9 +48,11 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/event"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/metrics"
+	"github.com/AICHAIN-CORE/go-aichain/node"
 	"github.com/AICHAIN-CORE/go-aichain/params"
 	"github.com/AICHAIN-CORE/go-aichain/rlp"
 	"github.com/AICHAIN-CORE/go-aichain/trie"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/golang-lru"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
@@ -62,6 +73,11 @@ const (
 
 	// BlockChainVersion ensures that an incompatible database forces a resync from scratch.
 	BlockChainVersion = 3
+
+	maxSQLStringLength = 1024 * 1024
+	maxMapSize         = 100000
+	maxThreadCount     = 6
+	maxTextLength      = 60000
 )
 
 // CacheConfig contains the configuration values for the trie caching/pruning
@@ -129,6 +145,24 @@ type BlockChain struct {
 	vmConfig  vm.Config
 
 	badBlocks *lru.Cache // Bad block cache
+
+	mysqldb *sql.DB
+
+	// insertTxSQL       bytes.Buffer
+	// insertERC20TxSQL  bytes.Buffer
+	balanceFound map[common.Address]bool
+	// balanceUpdate     map[common.Address]*big.Int
+	tokenBlanceFound map[string]bool
+	// tokenBlanceUpdate map[string]*big.Int
+	tokenDecimals map[common.Address]int
+	// contractFound map[common.Address]bool
+	datamu      sync.RWMutex // data mutex
+	threadmu    sync.RWMutex
+	threadCount int
+}
+
+type configuration struct {
+	Path string `json:"dbconn"`
 }
 
 // NewBlockChain returns a fully initialised block chain using information
