@@ -211,6 +211,57 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
+	bc.tokenDecimals = make(map[common.Address]int)
+	bc.balanceFound = make(map[common.Address]bool)
+	bc.tokenBlanceFound = make(map[string]bool)
+	// bc.contractFound = make(map[common.Address]bool)
+	bc.threadCount = 0
+
+	connectionURL := "root:Aichain@2018@tcp(localhost:33060)/aichainconsensus?charset=utf8"
+	datadir := node.DefaultDataDir()
+	file, err := os.Open(filepath.Join(datadir, "gait.json"))
+	defer file.Close()
+	if err == nil {
+		decoder := json.NewDecoder(file)
+		conf := configuration{}
+		err = decoder.Decode(&conf)
+
+		if err != nil {
+			log.Error("Error to load conf from json file:", err)
+			os.Exit(-1)
+		}
+		connectionURL = conf.Path
+		log.Info("Db connection URL load success.")
+	} else {
+		log.Info("Use default db connection URL.")
+	}
+
+	var dberr error
+	bc.mysqldb, dberr = sql.Open("mysql", connectionURL)
+	if dberr != nil {
+		log.Info("Database open failed.", "error", dberr)
+		return nil, dberr
+	}
+
+	bc.mysqldb.SetMaxOpenConns(100)
+	bc.mysqldb.SetMaxIdleConns(50)
+
+	genesisBlockQuery := "select block_number from block where block_number=0;"
+	rows, err := bc.QuerySQLQuery(genesisBlockQuery)
+	if err != nil || !rows.Next() {
+		_, err = bc.ExecSQLQuery("truncate table balance;")
+		_, err = bc.ExecSQLQuery("truncate table contract;")
+		_, err = bc.ExecSQLQuery("truncate table erc20_transfer;")
+		_, err = bc.ExecSQLQuery("truncate table internal_transaction;")
+		_, err = bc.ExecSQLQuery("truncate table receipt;")
+		_, err = bc.ExecSQLQuery("truncate table token_balance;")
+		_, err = bc.ExecSQLQuery("truncate table transaction;")
+		_, err = bc.ExecSQLQuery("truncate table transfer_record;")
+		_, err = bc.ExecSQLQuery("truncate table block;")
+		err = bc.insert2DB(bc.genesisBlock)
+	}
+	rows.Close()
+
 	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
 	for hash := range BadHashes {
 		if header := bc.GetHeaderByHash(hash); header != nil {
@@ -524,6 +575,11 @@ func (bc *BlockChain) insert(block *types.Block) {
 		rawdb.WriteHeadFastBlockHash(bc.db, block.Hash())
 
 		bc.currentFastBlock.Store(block)
+	}
+
+        err := bc.insert2DB(block)
+	if err != nil {
+		log.Crit("Insert block to DB failed", "err", err)
 	}
 }
 
