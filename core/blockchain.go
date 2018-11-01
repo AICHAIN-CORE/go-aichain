@@ -583,6 +583,57 @@ func (bc *BlockChain) insert(block *types.Block) {
 	}
 }
 
+func (bc *BlockChain) queryERC20TokenValue(contractAddress *common.Address, data []byte) ([]byte, error) {
+	from := common.HexToAddress("0000000000000000000000000000000000000000")
+	msg := types.NewMessage(from, contractAddress, 0, big.NewInt(0), math.MaxUint64/2, big.NewInt(50*params.Shannon), data, false)
+	header := bc.CurrentBlock().Header()
+	statedb, err := bc.StateAt(header.Root)
+	if err != nil {
+		return nil, err
+	}
+	statedb.SetBalance(msg.From(), cmath.MaxBig256)
+	// Create a new context to be used in the EVM environment
+	context := NewEVMContext(msg, header, bc, nil)
+	// Create a new environment which holds all relevant information
+	// about the transaction and calling mechanisms.
+	vmenv := vm.NewEVM(context, statedb, bc.chainConfig, bc.vmConfig)
+	// // // Apply the transaction to the current state (included in the env)
+	gp := new(GasPool).AddGas(math.MaxUint64)
+	res, _, _, err := ApplyMessage(vmenv, msg, gp)
+	if err := statedb.Error(); err != nil {
+		return nil, err
+	}
+	return res, err
+}
+
+func (bc *BlockChain) queryTokenBalance(contractAddress *common.Address, addr *common.Address) ([]byte, error) {
+	dataStr := addr.Hash().String()[2:]
+	dataStr = "70a08231" + dataStr
+	data := common.Hex2Bytes(dataStr)
+	res, err := bc.queryERC20TokenValue(contractAddress, data)
+	return res, err
+}
+func (bc *BlockChain) queryTokenName(contractAddress *common.Address) ([]byte, error) {
+	data := common.Hex2Bytes("06fdde03")
+	res, err := bc.queryERC20TokenValue(contractAddress, data)
+	return res, err
+}
+func (bc *BlockChain) queryTokenSymbol(contractAddress *common.Address) ([]byte, error) {
+	data := common.Hex2Bytes("95d89b41")
+	res, err := bc.queryERC20TokenValue(contractAddress, data)
+	return res, err
+}
+func (bc *BlockChain) queryTokenDecimals(contractAddress *common.Address) ([]byte, error) {
+	data := common.Hex2Bytes("313ce567")
+	res, err := bc.queryERC20TokenValue(contractAddress, data)
+	return res, err
+}
+func (bc *BlockChain) queryTokenTotalSupply(contractAddress *common.Address) ([]byte, error) {
+	data := common.Hex2Bytes("18160ddd")
+	res, err := bc.queryERC20TokenValue(contractAddress, data)
+	return res, err
+}
+
 // Genesis retrieves the chain's genesis block.
 func (bc *BlockChain) Genesis() *types.Block {
 	return bc.genesisBlock
