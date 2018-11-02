@@ -634,6 +634,150 @@ func (bc *BlockChain) queryTokenTotalSupply(contractAddress *common.Address) ([]
 	return res, err
 }
 
+func (bc *BlockChain) BigInt2OctDecimals(value *big.Int, decimals int) string {
+	data, err := value.MarshalText()
+	if err == nil {
+		if decimals == 0 {
+			return string(data)
+		}
+		var str string
+		if len(data) > decimals {
+			str = string(data[0:len(data)-decimals]) + "." + string(data[len(data)-decimals:])
+		} else {
+			str = "0."
+			for j := 0; j < decimals-len(data); j++ {
+				str += "0"
+			}
+			str += string(data)
+		}
+		i := len(str) - 1
+		for ; i >= 0; i-- {
+			if str[i] != '0' {
+				break
+			}
+		}
+		if str[i] == '.' {
+			return str[0:i]
+		}
+		return str[0 : i+1]
+	}
+	return ""
+}
+
+func (bc *BlockChain) BigInt2Oct(value *big.Int) string {
+	return bc.BigInt2OctDecimals(value, 18)
+}
+
+func (bc *BlockChain) insert2DB(block *types.Block) error {
+	//	log.Info("insert2DB enter")
+	//	defer log.Info("insert2DB exit")
+	if block.NumberU64() == 4983716 {
+		log.Info("-----------------", "blockNumber", block.NumberU64())
+	}
+	//delete blocks, transactions, receipts, and logs.
+	//transactions, receipts, and logs will be deleted cascade.
+	blockQuerySQL := fmt.Sprintf("select block_number from block where block_number =%v", block.Number())
+	rows, err := bc.QuerySQLQuery(blockQuerySQL)
+	if err == nil && rows.Next() {
+		rows.Close()
+		log.Info("delete old block, waiting for old processing.")
+		for bc.threadCount > 0 {
+			time.Sleep(100 * time.Millisecond)
+		}
+		log.Info("delete old block, new block", "blockNumber", block.NumberU64(), "blockhash", block.Hash(), "txNumber", block.Transactions().Len())
+		blockDeleteSQL := fmt.Sprintf("delete from block where block_number >=%v;", block.Number())
+		if _, err = bc.ExecSQLQuery(blockDeleteSQL); err != nil {
+			log.Crit("Failed to del block", "err", err)
+		}
+	} else {
+		rows.Close()
+	}
+	//	log.Info("clear data success")
+	blockTime := block.Time()
+	if blockTime.Cmp(big.NewInt(0)) == 0 {
+		if bc.chainConfig.ChainID.Cmp(big.NewInt(18376426810067278)) == 0 {
+			blockTime = big.NewInt(1525577749)
+		} else {
+			blockTime = big.NewInt(1524908551)
+		}
+	}
+	bc.datamu.Lock()
+	if len(bc.balanceFound) > maxMapSize {
+		bc.balanceFound = make(map[common.Address]bool)
+	}
+	if len(bc.tokenBlanceFound) > maxMapSize {
+		bc.tokenBlanceFound = make(map[string]bool)
+	}
+	if len(bc.tokenDecimals) > maxMapSize {
+		bc.tokenDecimals = make(map[common.Address]int)
+	}
+	// if len(bc.contractFound) > maxMapSize {
+	// 	bc.contractFound = make(map[common.Address]bool)
+	// }
+	bc.datamu.Unlock()
+
+	coinbase := block.Coinbase()
+	if bc.chainConfig.AiConsensus != nil && block.Number().Uint64() > bc.chainConfig.AiConsensus.ForkBlockNumber {
+		if aiconsensus, ok := bc.engine.(*aiconsensus.AiConsensus); ok {
+			coinbase, err = aiconsensus.Ecrecover(block.Header())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	//insert block
+	blockInsertSQL := "insert into  block(block_number, block_hash, block_timestamp, transactions_number,"
+	blockInsertSQL += "contract_internal_transactions_number, parent_hash, uncle_hash, coinbase, root, txhash, receipt_hash,  "
+	blockInsertSQL += "difficulty, total_difficulty, gas_used, gas_limit, header_signature, nonce, extra, block_size, block_reward)"
+	blockInsertSQL += "values("
+
+	blockData := fmt.Sprintf("%v, '%x', FROM_UNIXTIME(%v), %d, %d, '%x', '%x', '%x', '%x', '%x', '%x', %v, %v, %v, %v, '%x', '%x', '%x', ' %.0f', %d",
+		block.Number(), block.Hash(), blockTime, len(block.Transactions()), 0, block.ParentHash(), block.UncleHash(), coinbase,
+		block.Root(), block.TxHash(), block.ReceiptHash(), block.Difficulty(), 0, block.GasUsed(), block.GasLimit(),
+		block.SigData(), block.Nonce(), block.Extra(), block.Size(), 0)
+
+	blockInsertSQL += blockData
+	blockInsertSQL += ");"
+	_, err = bc.ExecSQLQuery(blockInsertSQL)
+	if err != nil {
+		log.Crit("Failed to insert block", "err", err)
+	}
+	for bc.threadCount > maxThreadCount {
+		time.Sleep(100 * time.Millisecond)
+	}
+	bc.threadmu.Lock()
+	bc.threadCount += 2
+	bc.threadmu.Unlock()
+	go func(block *types.Block) {
+		start := time.Now()
+		err := bc.updateBlockTx(block)
+		if err != nil {
+			log.Crit("update block failed", "err", err)
+		}
+		bc.threadmu.Lock()
+		bc.threadCount--
+		bc.threadmu.Unlock()
+		if block.Transactions().Len() > 1000 {
+			log.Info("updateBlockTx", "blockNumber", block.NumberU64(), "blockhash", block.Hash(), "txNumber", block.Transactions().Len(), "time", time.Since(start))
+		}
+	}(block)
+	go func(block *types.Block) {
+		start := time.Now()
+		err := bc.updateInternalTx(block)
+		if err != nil {
+			log.Crit("update block failed", "err", err)
+		}
+		bc.threadmu.Lock()
+		bc.threadCount--
+		bc.threadmu.Unlock()
+		if block.Transactions().Len() > 1000 {
+			log.Info("updateInternalTx", "blockNumber", block.NumberU64(), "blockhash", block.Hash(), "txNumber", block.Transactions().Len(), "time", time.Since(start))
+		}
+	}(block)
+	return nil
+}
+
 // Genesis retrieves the chain's genesis block.
 func (bc *BlockChain) Genesis() *types.Block {
 	return bc.genesisBlock
