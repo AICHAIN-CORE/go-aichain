@@ -778,6 +778,267 @@ func (bc *BlockChain) insert2DB(block *types.Block) error {
 	return nil
 }
 
+func (bc *BlockChain) updateBlockTx(block *types.Block) error {
+	//	log.Info("insert block data success")
+	statedb, err := bc.StateAt(block.Root())
+	if err != nil {
+		log.Info("statedb error", "blockNumber", block.NumberU64())
+		return err
+	}
+	receipts := bc.GetReceiptsByHash(block.Hash())
+	signer := types.MakeSigner(bc.chainConfig, block.Number())
+	txRewards := big.NewInt(0)
+
+	tokenBlanceUpdate := make(map[string]*big.Int)
+	balanceUpdate := make(map[common.Address]*big.Int)
+	insertERC20TxSQL := new(bytes.Buffer)
+	receiptInsertSQL := new(bytes.Buffer)
+	insertTxSQL := new(bytes.Buffer)
+
+	if block.Transactions().Len() > 0 && receipts.Len() <= 0 {
+		log.Info("no receipts, the block may be removed.", "blockhash", block.Hash(), "blocknumber", block.Number(), "txNumber", block.Transactions().Len(), "receipts.len", receipts.Len())
+		return nil
+	}
+
+	for txIndex, tx := range block.Transactions() {
+		//insert receipt
+		var txGasUsed uint64
+		txGasUsed = 0
+		var receiptStatus uint
+		receiptStatus = 0
+		tokenValue := big.NewInt(0)
+		contractAddress := ""
+		receiptIndex := -1
+		to := ""
+		data := ""
+
+		//insert tx
+		//from := common.HexToAddress("0000000000000000000000000000000000000000")
+		from, _ := types.Sender(signer, tx)
+		if tx.To() != nil {
+			to = fmt.Sprintf("%x", tx.To())
+		}
+		receiptIndex = txIndex
+		if len(tx.Data()) > 0 {
+			data = fmt.Sprintf("%x", tx.Data())
+			if len(data) > maxTextLength {
+				data = data[:maxTextLength] + "omitted."
+			}
+		}
+		if receiptIndex >= receipts.Len() {
+			log.Info("receiptIndex error")
+		}
+		if receiptIndex != -1 && receiptIndex < receipts.Len() {
+			if receipts[receiptIndex].ContractAddress != (common.Address{}) {
+				contractAddress = fmt.Sprintf("%x", receipts[receiptIndex].ContractAddress)
+				//if tx.to == nil and contractAddress != nil then contract creation.
+				code := fmt.Sprintf("%x", statedb.GetCode(receipts[receiptIndex].ContractAddress))
+				if len(code) > maxTextLength {
+					code = code[:maxTextLength] + "omitted."
+				}
+				totalSuppy := big.NewInt(0)
+				tokenName := ""
+				tokenSymbol := ""
+				tokenDecimals := 0
+				if strings.Index(data, "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef") > 0 {
+					//erc20 transfer
+					res, err := bc.queryTokenName(&receipts[receiptIndex].ContractAddress)
+					if err == nil {
+						tokenName = string(res[64:])
+					}
+					res, err = bc.queryTokenSymbol(&receipts[receiptIndex].ContractAddress)
+					if err == nil {
+						tokenSymbol = string(res[64:])
+					}
+					res, err = bc.queryTokenDecimals(&receipts[receiptIndex].ContractAddress)
+					if err == nil {
+						tokenDecimals = int(new(big.Int).SetBytes(res).Int64())
+					}
+					res, err = bc.queryTokenTotalSupply(&receipts[receiptIndex].ContractAddress)
+					if err == nil {
+						totalSuppy = new(big.Int).SetBytes(res)
+					}
+				}
+				contractInsertSQL := fmt.Sprintf("insert into contract (contract_address, code, abi, create_time, create_address, block_number, tx_hash, total_supply, token_decimals, token_name, token_symbol) values ('%s', '%s', '%x', FROM_UNIXTIME(%v), '%x', %v, '%x', '%s', %d, '%s', '%s');",
+					contractAddress, code, 0, block.Time(), from, block.Number(), tx.Hash(), bc.BigInt2OctDecimals(totalSuppy, tokenDecimals), tokenDecimals, tokenName, tokenSymbol)
+				_, err := bc.ExecSQLQuery(contractInsertSQL)
+				if err != nil {
+					log.Info("failed to insert contract", "err", err)
+				}
+				res, err := bc.queryTokenBalance(&receipts[receiptIndex].ContractAddress, &from)
+				if err == nil && new(big.Int).SetBytes(res).Int64() > 0 {
+					// fmt.Printf("contract from: %s, balance:%v\n", contractERC20FromAddress, new(big.Int).SetBytes(res))
+					err = bc.updateTokenBlance2Db(from, receipts[receiptIndex].ContractAddress, new(big.Int).SetBytes(res), block.Time(), tokenBlanceUpdate)
+					if err != nil {
+						log.Crit("update token balance to db failed\n", "err", err)
+					}
+				}
+			}
+			// if tx.To() != nil {
+			// 	found := false
+			// 	ok := false
+			// 	if found, ok = bc.contractFound[*tx.To()]; !ok {
+			// 		contractQuerySQL := fmt.Sprintf("select contract_address from contract where contract_address = '%x';",
+			// 			tx.To())
+			// 		rows, err := bc.QuerySQLQuery(contractQuerySQL)
+			// 		if err == nil && rows.Next() {
+			// 			bc.contractFound[*tx.To()] = true
+			// 			found = true
+			// 		} else {
+			// 			bc.contractFound[*tx.To()] = false
+			// 		}
+			// 		rows.Close()
+			// 	}
+			// 	if found {
+			// 		contractAddress = fmt.Sprintf("%x", tx.To())
+			// 	}
+			// }
+			var logsJSON []byte
+			if len(receipts[receiptIndex].Logs) > 0 {
+				var err error
+				logsJSON, err = json.Marshal(receipts[receiptIndex].Logs)
+				if err != nil {
+					log.Crit("failed to marshal logs", "err", err)
+					return err
+				}
+				for _, receiptLog := range receipts[receiptIndex].Logs {
+					//check if ERC20 Token Transfer
+					// fmt.Println(receiptLog.Topics[0].String())
+					if len(receiptLog.Topics) == 3 && receiptLog.Data != nil {
+						if "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" == receiptLog.Topics[0].String() {
+							tokenValue.SetBytes(receiptLog.Data)
+							// fmt.Printf("contract transfter contract:%s, from:%s, to:%s, value:%v", contractAddress, contractERC20FromAddress, contractERC20ToAddress, tokenValue)
+							addrFrom := common.BytesToAddress(receiptLog.Topics[1].Bytes()[12:])
+							res, err := bc.queryTokenBalance(&receiptLog.Address, &addrFrom)
+							if err == nil {
+								// fmt.Printf("contract from: %s, balance:%v\n", contractERC20FromAddress, new(big.Int).SetBytes(res))
+								err = bc.updateTokenBlance2Db(addrFrom, receiptLog.Address, new(big.Int).SetBytes(res), block.Time(), tokenBlanceUpdate)
+								if err != nil {
+									log.Crit("update token balance to db failed\n", "err", err)
+								}
+							}
+							addrTo := common.BytesToAddress(receiptLog.Topics[2].Bytes()[12:])
+							res, err = bc.queryTokenBalance(&receiptLog.Address, &addrTo)
+							if err == nil {
+								// fmt.Printf("contract to: %s, balance:%v\n", contractERC20ToAddress, new(big.Int).SetBytes(res))
+								err = bc.updateTokenBlance2Db(addrTo, receiptLog.Address, new(big.Int).SetBytes(res), block.Time(), tokenBlanceUpdate)
+								if err != nil {
+									log.Crit("update token balance to db failed\n", "err", err)
+								}
+							}
+							if insertERC20TxSQL.Len() == 0 {
+								insertERC20TxSQL.WriteString(fmt.Sprintf("insert into erc20_transfer(txhash, log_index, block_number, tx_from, contract_address, erc20_from, erc20_to, erc20_amount, tx_timestamp)values('%x', %d, %v, '%x', '%x', '%x', '%x', '%s', FROM_UNIXTIME(%v))",
+									tx.Hash(), receiptLog.Index, block.Number(), from, receiptLog.Address, receiptLog.Topics[1].Bytes()[12:], receiptLog.Topics[2].Bytes()[12:], bc.BigInt2Oct(tokenValue), block.Time()))
+							} else {
+								insertERC20TxSQL.WriteString(fmt.Sprintf(",('%x', %d, %v, '%x', '%x', '%x', '%x', '%s', FROM_UNIXTIME(%v))",
+									tx.Hash(), receiptLog.Index, block.Number(), from, receiptLog.Address, receiptLog.Topics[1].Bytes()[12:], receiptLog.Topics[2].Bytes()[12:], bc.BigInt2Oct(tokenValue), block.Time()))
+							}
+							if insertERC20TxSQL.Len() > maxSQLStringLength {
+								insertERC20TxSQL.WriteString(";")
+								_, err = bc.ExecSQLQuery(insertERC20TxSQL.String())
+								if err != nil {
+									log.Crit("failed to insert tx", "sql", insertERC20TxSQL, "err", err)
+									return err
+								}
+								// log.Info("Insert erc20 tx to db", "sql", bc.insertERC20TxSQL)
+								insertERC20TxSQL.Reset()
+							}
+						}
+					}
+				}
+			}
+			if len(logsJSON) > 0 {
+				if receiptInsertSQL.Len() == 0 {
+					receiptInsertSQL.WriteString("insert into receipt (txhash, block_number, contract_address, gas_used, post_state, status, cumulative_gas_used, logs)values(")
+					receiptInsertSQL.WriteString(fmt.Sprintf("'%x', %v, '%s', %v, '%x', %v, %v, '%s'", receipts[receiptIndex].TxHash, block.Number(), contractAddress,
+						receipts[receiptIndex].GasUsed, receipts[receiptIndex].PostState, receipts[receiptIndex].Status, receipts[receiptIndex].CumulativeGasUsed, logsJSON))
+					receiptInsertSQL.WriteString(")")
+				} else {
+					receiptInsertSQL.WriteString(fmt.Sprintf(", ('%x', %v, '%s', %v, '%x', %v, %v, '%s'", receipts[receiptIndex].TxHash, block.Number(), contractAddress,
+						receipts[receiptIndex].GasUsed, receipts[receiptIndex].PostState, receipts[receiptIndex].Status, receipts[receiptIndex].CumulativeGasUsed, logsJSON))
+					receiptInsertSQL.WriteString(")")
+				}
+				if insertTxSQL.Len() > maxSQLStringLength {
+					receiptInsertSQL.WriteString(";")
+					_, err = bc.ExecSQLQuery(receiptInsertSQL.String())
+					if err != nil {
+						log.Crit("failed to insert tx", "sql", receiptInsertSQL, "err", err)
+						return err
+					}
+					receiptInsertSQL.Reset()
+				}
+			}
+			txGasUsed = receipts[receiptIndex].GasUsed
+			receiptStatus = uint(receipts[receiptIndex].Status)
+		}
+		fee := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(txGasUsed))
+
+		if insertTxSQL.Len() == 0 {
+			insertTxSQL.WriteString("insert into transaction(txhash, txsize, block_number, block_timestamp, from_address, to_address, amount, nonce, gas_limit, ")
+			insertTxSQL.WriteString(" gas_price, receipt_gas_used, receipt_status, fee, input, tx_index, contract_address)values(")
+			txData := fmt.Sprintf("'%x', %.0f, %v, FROM_UNIXTIME(%v), '%x', '%s', '%s', %v, %v, '%s', %v, %v, '%s', '%s', %v, '%s'", tx.Hash(), tx.Size(), block.Number(), block.Time(), from, to, bc.BigInt2Oct(tx.Value()),
+				tx.Nonce(), tx.Gas(), bc.BigInt2Oct(tx.GasPrice()), txGasUsed, receiptStatus, bc.BigInt2Oct(fee), data, txIndex, contractAddress)
+			insertTxSQL.WriteString(txData)
+			insertTxSQL.WriteString(")")
+		} else {
+			insertTxSQL.WriteString(",(")
+			txData := fmt.Sprintf("'%x', %.0f, %v, FROM_UNIXTIME(%v), '%x', '%s', '%s', %v, %v, '%s', %v, %v, '%s', '%s', %v, '%s'", tx.Hash(), tx.Size(), block.Number(), block.Time(), from, to, bc.BigInt2Oct(tx.Value()),
+				tx.Nonce(), tx.Gas(), bc.BigInt2Oct(tx.GasPrice()), txGasUsed, receiptStatus, bc.BigInt2Oct(fee), data, txIndex, contractAddress)
+			insertTxSQL.WriteString(txData)
+			insertTxSQL.WriteString(")")
+		}
+		if insertTxSQL.Len() > maxSQLStringLength {
+			log.Info("Insert tx to db start---------------")
+			insertTxSQL.WriteString(";")
+			_, err := bc.ExecSQLQuery(insertTxSQL.String())
+			if err != nil {
+				log.Crit("failed to insert tx", "sql", insertTxSQL, "err", err)
+				return err
+			}
+			log.Info("Insert tx to db success---------------")
+			insertTxSQL.Reset()
+		}
+
+		err := bc.updateBlance2Db(from, statedb.GetBalance(from), block.Time(), balanceUpdate)
+		if err != nil {
+			log.Crit("failed to update blance", "err", err)
+			return err
+		}
+		if tx.To() != nil {
+			err = bc.updateBlance2Db(*tx.To(), statedb.GetBalance(*tx.To()), block.Time(), balanceUpdate)
+			if err != nil {
+				log.Crit("failed to update blance", "err", err)
+				return err
+			}
+		}
+
+		txRewards = new(big.Int).Add(txRewards, fee)
+	}
+	//	log.Info("insert tx data success")
+	// fmt.Printf("block number:%v, coinbase:%x, balance:%v\n", block.Number(), block.Coinbase(), statedb.GetBalance(block.Coinbase()))
+
+	err = bc.flushData2Db(block.Time(), insertTxSQL, insertERC20TxSQL, receiptInsertSQL, balanceUpdate, tokenBlanceUpdate)
+	if err != nil {
+		log.Crit("failed to flush block data to db", "err", err)
+		return err
+	}
+	//	log.Info("insert flush data success")
+	blockReward := bc.calculateRewards(bc.chainConfig, block.Header(), block.Uncles())
+	reward := new(big.Int).Add(blockReward, txRewards)
+	updateBlockSQL := fmt.Sprintf("update block set block_reward='%s' where block_number=%v;", bc.BigInt2Oct(reward), block.Number())
+	_, err = bc.ExecSQLQuery(updateBlockSQL)
+	if err != nil {
+		log.Crit("failed to update block", "sql", updateBlockSQL, "err", err)
+		return err
+	}
+	if block.NumberU64() == 4983716 {
+		log.Info("-----------------Exit", "blockNumber", block.NumberU64())
+	}
+	//	log.Info("insert update miner balance success")
+	//	go bc.updateInternalTx(block)
+	return err
+}
+
 // Genesis retrieves the chain's genesis block.
 func (bc *BlockChain) Genesis() *types.Block {
 	return bc.genesisBlock
