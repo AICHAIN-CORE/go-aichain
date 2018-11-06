@@ -777,7 +777,6 @@ func (bc *BlockChain) insert2DB(block *types.Block) error {
 	}(block)
 	return nil
 }
-
 func (bc *BlockChain) updateBlockTx(block *types.Block) error {
 	//	log.Info("insert block data success")
 	statedb, err := bc.StateAt(block.Root())
@@ -1037,6 +1036,108 @@ func (bc *BlockChain) updateBlockTx(block *types.Block) error {
 	//	log.Info("insert update miner balance success")
 	//	go bc.updateInternalTx(block)
 	return err
+}
+
+func (bc *BlockChain) updateInternalTx(block *types.Block) error {
+	//	log.Info("updateInternalTx enter")
+	//	defer log.Info("updateInternalTx exit")
+	statedb, err := bc.StateAt(block.Root())
+	if err != nil {
+		log.Info("statedb error", "blockNumber", block.NumberU64())
+		return err
+	}
+	var insertTransferRecord2DbSQL bytes.Buffer
+	var insertInternalTx2DbSQL bytes.Buffer
+	balanceUpdate := make(map[common.Address]*big.Int)
+	internalTxNumber := 0
+	if block.NumberU64() > 0 {
+		traceData, err := traceBlock(bc, block)
+		if err == nil {
+			index := 0
+			txindex := 0
+			for _, data := range traceData.transfers {
+				// fmt.Printf("depth:%d, src:%x, srcBalance:%v, dest:%x, destBalance:%v, kind:%s, txHash:%x, data.value:%v\n",
+				// data.depth, data.src, data.srcBalance, data.dest, data.destBalance, data.kind, data.transactionHash, data.value)
+
+				if data.kind != "MINED" {
+					err = bc.updateBlance2DbInternalTx(data.src, statedb.GetBalance(data.src), block.Time(), balanceUpdate)
+					if err != nil {
+						log.Crit("failed to update blance", "err", err)
+						return err
+					}
+				}
+				err = bc.updateBlance2DbInternalTx(data.dest, statedb.GetBalance(data.dest), block.Time(), balanceUpdate)
+				if err != nil {
+					log.Crit("failed to update blance", "err", err)
+					return err
+				}
+
+				if data.depth > 0 {
+					bc.insertInternalTx2Db(block.Number(), data, index, block.Time(), &insertInternalTx2DbSQL)
+					index++
+					internalTxNumber++
+				}
+				txindex++
+				bc.insertTransferRecord2Db(block.Number(), data, txindex, block.Time(), &insertTransferRecord2DbSQL)
+			}
+		}
+	}
+	//	log.Info("insert internal tx data success")
+	err = bc.flushInternalTxData2Db(block.Time(), balanceUpdate, &insertTransferRecord2DbSQL, &insertInternalTx2DbSQL)
+	if err != nil {
+		log.Crit("failed to flush block data to db", "err", err)
+		return err
+	}
+
+	if internalTxNumber > 0 {
+		//	log.Info("flush data success")
+		updateBlockSQL := fmt.Sprintf("update block set contract_internal_transactions_number=%d where block_number=%v;", internalTxNumber, block.Number())
+		_, err = bc.ExecSQLQuery(updateBlockSQL)
+		if err != nil {
+			log.Crit("failed to update block", "sql", updateBlockSQL, "err", err)
+			return err
+		}
+	}
+	//	log.Info("update internal tx success")
+	return nil
+}
+
+func (bc *BlockChain) insertTransferRecord2Db(blockNumber *big.Int, transfer *valueTransfer, index int, timestamp *big.Int, insertTransferRecord2DbSQL *bytes.Buffer) error {
+	// if transfer.src.Hex()[2:] != "0000000000000000000000000000000000000000" {
+	// 	if len(bc.insertTransferRecord2DbSQL) == 0 {
+	// 		bc.insertTransferRecord2DbSQL = fmt.Sprintf("insert into transfer_record(tx_hash, tx_index, depth, block_number, ait_address, transfer_type, amount, balance, kind, tx_timestamp)values('%x', %d, %d, %v, '%x', %d, '%s', '%s', '%s', FROM_UNIXTIME(%v))",
+	// 			transfer.transactionHash, index, transfer.depth, blockNumber, transfer.src, 0, bc.BigInt2Oct(transfer.value), bc.BigInt2Oct(transfer.srcBalance), transfer.kind, timestamp)
+	// 	} else {
+	// 		bc.insertTransferRecord2DbSQL += fmt.Sprintf(",('%x', %d, %d, %v, '%x', %d, '%s', '%s', '%s', FROM_UNIXTIME(%v))",
+	// 			transfer.transactionHash, index, transfer.depth, blockNumber, transfer.src, 0, bc.BigInt2Oct(transfer.value), bc.BigInt2Oct(transfer.srcBalance), transfer.kind, timestamp)
+	// 	}
+	// 	if len(bc.insertTransferRecord2DbSQL) > maxSQLStringLength {
+	// 		_, err := bc.ExecSQLQuery(bc.insertTransferRecord2DbSQL)
+	// 		if err != nil {
+	// 			log.Info("Failed to insert transfer record of src", "sql", bc.insertTransferRecord2DbSQL, "err", err)
+	// 		}
+	// 		// log.Info("Insert txRecord to db", "sql", bc.insertTransferRecord2DbSQL)
+	// 		bc.insertTransferRecord2DbSQL = ""
+	// 	}
+	// }
+	// if transfer.dest.Hex()[2:] != "0000000000000000000000000000000000000000" {
+	// 	if len(bc.insertTransferRecord2DbSQL) == 0 {
+	// 		bc.insertTransferRecord2DbSQL = fmt.Sprintf("insert into transfer_record(tx_hash, tx_index, depth, block_number, ait_address, transfer_type, amount, balance, kind, tx_timestamp)values('%x', %d, %d, %v, '%x', %d, '%s', '%s', '%s', FROM_UNIXTIME(%v))",
+	// 			transfer.transactionHash, index, transfer.depth, blockNumber, transfer.dest, 1, bc.BigInt2Oct(transfer.value), bc.BigInt2Oct(transfer.destBalance), transfer.kind, timestamp)
+	// 	} else {
+	// 		bc.insertTransferRecord2DbSQL += fmt.Sprintf(",('%x', %d, %d, %v, '%x', %d, '%s', '%s', '%s', FROM_UNIXTIME(%v))",
+	// 			transfer.transactionHash, index, transfer.depth, blockNumber, transfer.dest, 1, bc.BigInt2Oct(transfer.value), bc.BigInt2Oct(transfer.destBalance), transfer.kind, timestamp)
+	// 	}
+	// 	if len(bc.insertTransferRecord2DbSQL) > maxSQLStringLength {
+	// 		_, err := bc.ExecSQLQuery(bc.insertTransferRecord2DbSQL)
+	// 		if err != nil {
+	// 			log.Info("Failed to insert transfer record of src", "sql", bc.insertTransferRecord2DbSQL, "err", err)
+	// 		}
+	// 		// log.Info("Insert txRecord to db", "sql", bc.insertTransferRecord2DbSQL)
+	// 		bc.insertTransferRecord2DbSQL = ""
+	// 	}
+	// }
+	return nil
 }
 
 // Genesis retrieves the chain's genesis block.
