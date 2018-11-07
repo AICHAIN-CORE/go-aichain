@@ -75,7 +75,7 @@ type ServiceConstructor func(ctx *ServiceContext) (Service, error)
 //
 // Notes:
 //
-// â€?Service life-cycle management is delegated to the node. The service is allowed to
+// Service life-cycle management is delegated to the node. The service is allowed to
 // initialize itself upon creation, but no goroutines should be spun up outside of the
 // Start method.
 //
