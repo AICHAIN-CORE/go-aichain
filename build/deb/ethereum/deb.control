@@ -10,7 +10,7 @@ Vcs-Browser: https://github.com/AICHAIN-CORE/go-aichain
 
 Package: {{.Name}}
 Architecture: any
-Depends: ${misc:Depends}, {{.EthereumSwarmPackageName}}, {{.ExeList}}
+Depends: ${misc:Depends}, {{.ExeList}}
 Description: Meta-package to install gait, swarm, and other tools
  Meta-package to install gait, swarm and other tools
 
