@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/gosigar"
         "github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/accounts/keystore"
 	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"
@@ -42,6 +41,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/metrics"
 	"github.com/AICHAIN-CORE/go-aichain/node"
+	"github.com/elastic/gosigar"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -71,6 +71,7 @@ var (
 		utils.DashboardAddrFlag,
 		utils.DashboardPortFlag,
 		utils.DashboardRefreshFlag,
+		utils.TxPoolLocalsFlag,
 		utils.TxPoolNoLocalsFlag,
 		utils.TxPoolJournalFlag,
 		utils.TxPoolRejournalFlag,
@@ -81,8 +82,6 @@ var (
 		utils.TxPoolAccountQueueFlag,
 		utils.TxPoolGlobalQueueFlag,
 		utils.TxPoolLifetimeFlag,
-		utils.FastSyncFlag,
-		utils.LightModeFlag,
 		utils.SyncModeFlag,
 		utils.GCModeFlag,
 		utils.LightServFlag,
@@ -95,12 +94,19 @@ var (
 		utils.ListenPortFlag,
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
-		utils.EtherbaseFlag,
 		utils.PassphraseFlag,
-		utils.GasPriceFlag,
-		utils.MinerThreadsFlag,
 		utils.MiningEnabledFlag,
-		utils.TargetGasLimitFlag,
+		utils.MinerThreadsFlag,
+		utils.MinerLegacyThreadsFlag,
+		utils.MinerNotifyFlag,
+		utils.MinerGasTargetFlag,
+		utils.MinerLegacyGasTargetFlag,
+		utils.MinerGasPriceFlag,
+		utils.MinerLegacyGasPriceFlag,
+		utils.MinerEtherbaseFlag,
+		utils.MinerLegacyEtherbaseFlag,
+		utils.MinerExtraDataFlag,
+		utils.MinerLegacyExtraDataFlag,
 		utils.NATFlag,
 		utils.NoDiscoverFlag,
 		utils.DiscoveryV5Flag,
@@ -122,7 +128,6 @@ var (
 		utils.NoCompactionFlag,
 		utils.GpoBlocksFlag,
 		utils.GpoPercentileFlag,
-		utils.ExtraDataFlag,
 		configFileFlag,
 	}
 
@@ -319,21 +324,22 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			}
 		}
 	}()
-
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full AICHAIN node is running
-		if ctx.GlobalBool(utils.LightModeFlag.Name) || ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
+		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
 			utils.Fatalf("Light clients do not support mining")
 		}
 		var aichain *eth.AICHAIN
 		if err := stack.Service(&aichain); err != nil {
 			utils.Fatalf("AICHAIN service not running: %v", err)
 		}
-
-		aichain.MyNodeServer = stack.Server()
 		// Use a reduced number of threads if requested
-		if threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name); threads > 0 {
+		threads := ctx.GlobalInt(utils.MinerLegacyThreadsFlag.Name)
+		if ctx.GlobalIsSet(utils.MinerThreadsFlag.Name) {
+			threads = ctx.GlobalInt(utils.MinerThreadsFlag.Name)
+		}
+		if threads > 0 {
 			type threaded interface {
 				SetThreads(threads int)
 			}
@@ -341,6 +347,14 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 				th.SetThreads(threads)
 			}
 		}
+		// Set the gas price to the limits from the CLI and start mining
+		gasprice := utils.GlobalBig(ctx, utils.MinerLegacyGasPriceFlag.Name)
+		if ctx.IsSet(utils.MinerGasPriceFlag.Name) {
+			gasprice = utils.GlobalBig(ctx, utils.MinerGasPriceFlag.Name)
+		}
+		aichain.TxPool().SetGasPrice(gasprice)
+
+		aichain.MyNodeServer = stack.Server()
 
 		stateDb, err := aichain.BlockChain().StateAt(aichain.BlockChain().CurrentBlock().Root())
 		if err == nil {
@@ -389,8 +403,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 
 		aichain.SetEtherbasePassphrase(passphrase)
-		// Set the gas price to the limits from the CLI and start mining
-		aichain.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
+
 		if err := aichain.StartMining(true); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
