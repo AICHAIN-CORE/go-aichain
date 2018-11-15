@@ -24,7 +24,6 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -48,7 +47,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/ethstats"
 	"github.com/AICHAIN-CORE/go-aichain/les"
 	"github.com/AICHAIN-CORE/go-aichain/log"
-        "github.com/AICHAIN-CORE/go-aichain/metrics"
+	"github.com/AICHAIN-CORE/go-aichain/metrics"
 	"github.com/AICHAIN-CORE/go-aichain/metrics/influxdb"
 	"github.com/AICHAIN-CORE/go-aichain/node"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
@@ -162,14 +161,6 @@ var (
 		Usage: "Document Root for HTTPClient file scheme",
 		Value: DirectoryString{homeDir()},
 	}
-	FastSyncFlag = cli.BoolFlag{
-		Name:  "fast",
-		Usage: "Enable fast syncing through state downloads (replaced by --syncmode)",
-	}
-	LightModeFlag = cli.BoolFlag{
-		Name:  "light",
-		Usage: "Enable light client mode (replaced by --syncmode)",
-	}
 	defaultSyncMode = eth.DefaultConfig.SyncMode
 	SyncModeFlag    = TextMarshalerFlag{
 		Name:  "syncmode",
@@ -219,6 +210,10 @@ var (
 	// we remove all settings of Ethhash for using lyra2DC!!!
 
 	// Transaction pool settings
+	TxPoolLocalsFlag = cli.StringFlag{
+		Name:  "txpool.locals",
+		Usage: "Comma separated accounts to treat as locals (no flush, priority inclusion)",
+	}
 	TxPoolNoLocalsFlag = cli.BoolFlag{
 		Name:  "txpool.nolocals",
 		Usage: "Disables price exemptions for locally submitted transactions",
@@ -295,33 +290,61 @@ var (
 		Usage: "Enable mining",
 	}
 	MinerThreadsFlag = cli.IntFlag{
-		Name:  "minerthreads",
+		Name:  "miner.threads",
 		Usage: "Number of CPU threads to use for mining",
-		Value: runtime.NumCPU(),
+		Value: 0,
 	}
-	TargetGasLimitFlag = cli.Uint64Flag{
-		Name:  "targetgaslimit",
-		Usage: "Target gas limit sets the artificial target gas floor for the blocks to mine",
+	MinerLegacyThreadsFlag = cli.IntFlag{
+		Name:  "minerthreads",
+		Usage: "Number of CPU threads to use for mining (deprecated, use --miner.threads)",
+		Value: 0,
+	}
+	MinerNotifyFlag = cli.StringFlag{
+		Name:  "miner.notify",
+		Usage: "Comma separated HTTP URL list to notify of new work packages",
+	}
+	MinerGasTargetFlag = cli.Uint64Flag{
+		Name:  "miner.gastarget",
+		Usage: "Target gas floor for mined blocks",
 		Value: params.GenesisGasLimit,
 	}
-	EtherbaseFlag = cli.StringFlag{
-		Name:  "etherbase",
-		Usage: "Public address for block mining rewards (default = first account created)",
+	MinerLegacyGasTargetFlag = cli.Uint64Flag{
+		Name:  "targetgaslimit",
+		Usage: "Target gas floor for mined blocks (deprecated, use --miner.gastarget)",
+		Value: params.GenesisGasLimit,
+	}
+	MinerGasPriceFlag = BigFlag{
+		Name:  "miner.gasprice",
+		Usage: "Minimal gas price for mining a transactions",
+		Value: eth.DefaultConfig.MinerGasPrice,
+	}
+	MinerLegacyGasPriceFlag = BigFlag{
+		Name:  "gasprice",
+		Usage: "Minimal gas price for mining a transactions (deprecated, use --miner.gasprice)",
+		Value: eth.DefaultConfig.MinerGasPrice,
+	}
+	MinerEtherbaseFlag = cli.StringFlag{
+		Name:  "miner.etherbase",
+		Usage: "Public address for block mining rewards (default = first account)",
 		Value: "0",
+	}
+	MinerLegacyEtherbaseFlag = cli.StringFlag{
+		Name:  "etherbase",
+		Usage: "Public address for block mining rewards (default = first account, deprecated, use --miner.etherbase)",
+		Value: "0",
+	}
+	MinerExtraDataFlag = cli.StringFlag{
+		Name:  "miner.extradata",
+		Usage: "Block extra data set by the miner (default = client version)",
+	}
+	MinerLegacyExtraDataFlag = cli.StringFlag{
+		Name:  "extradata",
+		Usage: "Block extra data set by the miner (default = client version, deprecated, use --miner.extradata)",
 	}
 	PassphraseFlag = cli.StringFlag{
 		Name:  "passphrase",
 		Usage: "passphrase for account of etherbase",
 		Value: "",
-	}
-	GasPriceFlag = BigFlag{
-		Name:  "gasprice",
-		Usage: "Minimal gas price to accept for mining a transactions",
-		Value: eth.DefaultConfig.GasPrice,
-	}
-	ExtraDataFlag = cli.StringFlag{
-		Name:  "extradata",
-		Usage: "Block extra data set by the miner (default = client version)",
 	}
 	// Account settings
 	UnlockedAccountFlag = cli.StringFlag{
@@ -797,10 +820,19 @@ func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error
 // setEtherbase retrieves the etherbase either from the directly specified
 // command line flags or from the keystore if CLI indexed.
 func setEtherbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *eth.Config) {
-	if ctx.GlobalIsSet(EtherbaseFlag.Name) {
-		account, err := MakeAddress(ks, ctx.GlobalString(EtherbaseFlag.Name))
+	// Extract the current etherbase, new flag overriding legacy one
+	var etherbase string
+	if ctx.GlobalIsSet(MinerLegacyEtherbaseFlag.Name) {
+		etherbase = ctx.GlobalString(MinerLegacyEtherbaseFlag.Name)
+	}
+	if ctx.GlobalIsSet(MinerEtherbaseFlag.Name) {
+		etherbase = ctx.GlobalString(MinerEtherbaseFlag.Name)
+	}
+	// Convert the etherbase into an address and configure it
+	if etherbase != "" {
+		account, err := MakeAddress(ks, etherbase)
 		if err != nil {
-			Fatalf("Option %q: %v", EtherbaseFlag.Name, err)
+			Fatalf("Invalid miner etherbase: %v", err)
 		}
 		cfg.Etherbase = account.Address
 	}
@@ -831,7 +863,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	setBootstrapNodes(ctx, cfg)
 	setBootstrapNodesV5(ctx, cfg)
 
-	lightClient := ctx.GlobalBool(LightModeFlag.Name) || ctx.GlobalString(SyncModeFlag.Name) == "light"
+	lightClient := ctx.GlobalString(SyncModeFlag.Name) == "light"
 	lightServer := ctx.GlobalInt(LightServFlag.Name) != 0
 	lightPeers := ctx.GlobalInt(LightPeersFlag.Name)
 
@@ -931,6 +963,16 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 }
 
 func setTxPool(ctx *cli.Context, cfg *core.TxPoolConfig) {
+	if ctx.GlobalIsSet(TxPoolLocalsFlag.Name) {
+		locals := strings.Split(ctx.GlobalString(TxPoolLocalsFlag.Name), ",")
+		for _, account := range locals {
+			if trimmed := strings.TrimSpace(account); !common.IsHexAddress(trimmed) {
+				Fatalf("Invalid account in --txpool.locals: %s", trimmed)
+			} else {
+				cfg.Locals = append(cfg.Locals, common.HexToAddress(account))
+			}
+		}
+	}
 	if ctx.GlobalIsSet(TxPoolNoLocalsFlag.Name) {
 		cfg.NoLocals = ctx.GlobalBool(TxPoolNoLocalsFlag.Name)
 	}
@@ -1015,8 +1057,6 @@ func SetShhConfig(ctx *cli.Context, stack *node.Node, cfg *whisper.Config) {
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	// Avoid conflicting network flags
 	checkExclusive(ctx, DeveloperFlag, TestnetFlag, RinkebyFlag)
-	checkExclusive(ctx, FastSyncFlag, LightModeFlag, SyncModeFlag)
-	checkExclusive(ctx, LightServFlag, LightModeFlag)
 	checkExclusive(ctx, LightServFlag, SyncModeFlag, "light")
 
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
@@ -1024,13 +1064,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
 
-	switch {
-	case ctx.GlobalIsSet(SyncModeFlag.Name):
+	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
-	case ctx.GlobalBool(FastSyncFlag.Name):
-		cfg.SyncMode = downloader.FastSync
-	case ctx.GlobalBool(LightModeFlag.Name):
-		cfg.SyncMode = downloader.LightSync
 	}
 	if ctx.GlobalIsSet(LightServFlag.Name) {
 		cfg.LightServ = ctx.GlobalInt(LightServFlag.Name)
@@ -1055,17 +1090,29 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	if ctx.GlobalIsSet(CacheFlag.Name) || ctx.GlobalIsSet(CacheGCFlag.Name) {
 		cfg.TrieCache = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
 	}
+	if ctx.GlobalIsSet(MinerLegacyThreadsFlag.Name) {
+		cfg.MinerThreads = ctx.GlobalInt(MinerLegacyThreadsFlag.Name)
+	}
 	if ctx.GlobalIsSet(MinerThreadsFlag.Name) {
 		cfg.MinerThreads = ctx.GlobalInt(MinerThreadsFlag.Name)
+	}
+	if ctx.GlobalIsSet(MinerNotifyFlag.Name) {
+		cfg.MinerNotify = strings.Split(ctx.GlobalString(MinerNotifyFlag.Name), ",")
 	}
 	if ctx.GlobalIsSet(DocRootFlag.Name) {
 		cfg.DocRoot = ctx.GlobalString(DocRootFlag.Name)
 	}
-	if ctx.GlobalIsSet(ExtraDataFlag.Name) {
-		cfg.ExtraData = []byte(ctx.GlobalString(ExtraDataFlag.Name))
+	if ctx.GlobalIsSet(MinerLegacyExtraDataFlag.Name) {
+		cfg.MinerExtraData = []byte(ctx.GlobalString(MinerLegacyExtraDataFlag.Name))
 	}
-	if ctx.GlobalIsSet(GasPriceFlag.Name) {
-		cfg.GasPrice = GlobalBig(ctx, GasPriceFlag.Name)
+	if ctx.GlobalIsSet(MinerExtraDataFlag.Name) {
+		cfg.MinerExtraData = []byte(ctx.GlobalString(MinerExtraDataFlag.Name))
+	}
+	if ctx.GlobalIsSet(MinerLegacyGasPriceFlag.Name) {
+		cfg.MinerGasPrice = GlobalBig(ctx, MinerLegacyGasPriceFlag.Name)
+	}
+	if ctx.GlobalIsSet(MinerGasPriceFlag.Name) {
+		cfg.MinerGasPrice = GlobalBig(ctx, MinerGasPriceFlag.Name)
 	}
 	if ctx.GlobalIsSet(VMEnableDebugFlag.Name) {
 		// TODO(fjl): force-enable this in --dev mode
@@ -1112,8 +1159,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 		log.Info("Using developer account", "address", developer.Address)
 
 		cfg.Genesis = core.DeveloperGenesisBlock(uint64(ctx.GlobalInt(DeveloperPeriodFlag.Name)), developer.Address)
-		if !ctx.GlobalIsSet(GasPriceFlag.Name) {
-			cfg.GasPrice = big.NewInt(1)
+		if !ctx.GlobalIsSet(MinerGasPriceFlag.Name) && !ctx.GlobalIsSet(MinerLegacyGasPriceFlag.Name) {
+			cfg.MinerGasPrice = big.NewInt(1)
 		}
 	}
 	// TODO(fjl): move trie cache generations into config
@@ -1187,7 +1234,10 @@ func RegisterEthStatsService(stack *node.Node, url string) {
 // SetupNetwork configures the system for either the main net or some test network.
 func SetupNetwork(ctx *cli.Context) {
 	// TODO(fjl): move target gas limit into config
-	params.TargetGasLimit = ctx.GlobalUint64(TargetGasLimitFlag.Name)
+	params.TargetGasLimit = ctx.GlobalUint64(MinerLegacyGasTargetFlag.Name)
+	if ctx.GlobalIsSet(MinerGasTargetFlag.Name) {
+		params.TargetGasLimit = ctx.GlobalUint64(MinerGasTargetFlag.Name)
+	}
 }
 
 func SetupMetrics(ctx *cli.Context) {
@@ -1218,7 +1268,7 @@ func MakeChainDatabase(ctx *cli.Context, stack *node.Node) ethdb.Database {
 		handles = makeDatabaseHandles()
 	)
 	name := "chaindata"
-	if ctx.GlobalBool(LightModeFlag.Name) {
+	if ctx.GlobalString(SyncModeFlag.Name) == "light" {
 		name = "lightchaindata"
 	}
 	chainDb, err := stack.OpenDatabase(name, cache, handles)
