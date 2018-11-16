@@ -33,7 +33,7 @@ import (
 // Lengths of hashes and addresses in bytes.
 const (
 	// HashLength is the expected length of the hash
-	HashLength = 32
+	HashLength    = 32
 	// AddressLength is the expected length of the adddress
 	AddressLength = 20
 )
@@ -56,11 +56,11 @@ func BytesToHash(b []byte) Hash {
 
 // BigToHash sets byte representation of b to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
+func BigToHash(b *big.Int) Hash  { return BytesToHash(b.Bytes()) }
 
 // HexToHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func HexToHash(s string) Hash { return BytesToHash(FromHex(s)) }
+func HexToHash(s string) Hash    { return BytesToHash(FromHex(s)) }
 
 // Bytes gets the byte representation of the underlying hash.
 func (h Hash) Bytes() []byte { return h[:] }
@@ -69,12 +69,12 @@ func (h Hash) Bytes() []byte { return h[:] }
 func (h Hash) Big() *big.Int { return new(big.Int).SetBytes(h[:]) }
 
 // Hex converts a hash to a hex string.
-func (h Hash) Hex() string { return hexutil.Encode(h[:]) }
+func (h Hash) Hex() string   { return hexutil.Encode(h[:]) }
 
 // TerminalString implements log.TerminalStringer, formatting a string for console
 // output during logging.
 func (h Hash) TerminalString() string {
-	return fmt.Sprintf("%xâ€¦%x", h[:3], h[29:])
+	return fmt.Sprintf("%xâ€?x", h[:3], h[29:])
 }
 
 // String implements the stringer interface and is used also by the logger when
@@ -169,11 +169,11 @@ func BytesToAddress(b []byte) Address {
 
 // BigToAddress returns Address with byte values of b.
 // If b is larger than len(h), b will be cropped from the left.
-func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
+func BigToAddress(b *big.Int) Address  { return BytesToAddress(b.Bytes()) }
 
 // HexToAddress returns Address with byte values of s.
 // If s is larger than len(h), s will be cropped from the left.
-func HexToAddress(s string) Address { return BytesToAddress(FromHex(s)) }
+func HexToAddress(s string) Address    { return BytesToAddress(FromHex(s)) }
 
 // IsHexAddress verifies whether a string can represent a valid hex-encoded
 // AICHAIN address or not.
@@ -191,7 +191,7 @@ func (a Address) Bytes() []byte { return a[:] }
 func (a Address) Big() *big.Int { return new(big.Int).SetBytes(a[:]) }
 
 // Hash converts an address to a hash by left-padding it with zeros.
-func (a Address) Hash() Hash { return BytesToHash(a[:]) }
+func (a Address) Hash() Hash    { return BytesToHash(a[:]) }
 
 // Hex returns an EIP55-compliant hex string representation of the address.
 func (a Address) Hex() string {
@@ -313,7 +313,7 @@ func (ma *MixedcaseAddress) UnmarshalJSON(input []byte) error {
 
 // MarshalJSON marshals the original value
 func (ma *MixedcaseAddress) MarshalJSON() ([]byte, error) {
-	if strings.HasPrefix(ma.original, "0x") || strings.HasPrefix(ma.original, "0X") || strings.HasPrefix(ma.original, "ai") || strings.HasPrefix(ma.original, "AI") || strings.HasPrefix(ma.original, "aI") || strings.HasPrefix(ma.original, "Ai") {
+	if strings.HasPrefix(ma.original, "0x") || strings.HasPrefix(ma.original, "0X") || strings.HasPrefix(ma.original, "ai") || strings.HasPrefix(ma.original, "AI") || strings.HasPrefix(ma.original, "aI") || strings.HasPrefix(ma.original, "Ai"){
 		return json.Marshal(fmt.Sprintf("0x%s", ma.original[2:]))
 	}
 	return json.Marshal(fmt.Sprintf("0x%s", ma.original))
