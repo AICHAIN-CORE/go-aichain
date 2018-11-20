@@ -29,7 +29,7 @@ type PendingLogsEvent struct {
 	Logs []*types.Log
 }
 
-// PendingStateEvent is posted pre mining and notifies of pending state changes.
+// PendingStateEvent is posted pre mining and notifies of pending state changes. used by AICHAIN
 type PendingStateEvent struct{}
 
 // NewMinedBlockEvent is posted when a block has been imported.

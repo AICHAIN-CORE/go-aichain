@@ -171,6 +171,7 @@ func TestSAR(t *testing.T) {
 
 func TestSGT(t *testing.T) {
 	tests := []twoOperandTest{
+
 		{"0000000000000000000000000000000000000000000000000000000000000001", "0000000000000000000000000000000000000000000000000000000000000001", "0000000000000000000000000000000000000000000000000000000000000000"},
 		{"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "0000000000000000000000000000000000000000000000000000000000000000"},
 		{"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "0000000000000000000000000000000000000000000000000000000000000000"},
@@ -213,6 +214,7 @@ func opBenchmark(bench *testing.B, op func(pc *uint64, interpreter *EVMInterpret
 	)
 
 	env.interpreter = evmInterpreter
+	evmInterpreter.intPool = poolOfIntPools.get()
 	// convert args
 	byteArgs := make([][]byte, len(args))
 	for i, arg := range args {
@@ -228,6 +230,7 @@ func opBenchmark(bench *testing.B, op func(pc *uint64, interpreter *EVMInterpret
 		op(&pc, evmInterpreter, nil, nil, stack)
 		stack.pop()
 	}
+	poolOfIntPools.put(evmInterpreter.intPool)
 }
 
 func BenchmarkOpAdd64(b *testing.B) {
@@ -473,6 +476,7 @@ func BenchmarkOpMstore(bench *testing.B) {
 	)
 
 	env.interpreter = evmInterpreter
+	evmInterpreter.intPool = poolOfIntPools.get()
 	mem.Resize(64)
 	pc := uint64(0)
 	memStart := big.NewInt(0)
@@ -483,4 +487,5 @@ func BenchmarkOpMstore(bench *testing.B) {
 		stack.pushN(value, memStart)
 		opMstore(&pc, evmInterpreter, nil, mem, stack)
 	}
+	poolOfIntPools.put(evmInterpreter.intPool)
 }
