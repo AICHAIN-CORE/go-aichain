@@ -5,14 +5,14 @@ import (
 )
 
 // curvePoint implements the elliptic curve y²=x³+3. Points are kept in Jacobian
-// form and t=z² when valid. G�?is the set of points of this curve on GF(p).
+// form and t=z² when valid. GF is the set of points of this curve on GF(p).
 type curvePoint struct {
 	x, y, z, t gfP
 }
 
 var curveB = newGFp(3)
 
-// curveGen is the generator of G�?
+// curveGen is the generator of GF
 var curveGen = &curvePoint{
 	x: *newGFp(1),
 	y: *newGFp(2),
