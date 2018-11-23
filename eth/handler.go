@@ -96,8 +96,8 @@ type ProtocolManager struct {
 	wg sync.WaitGroup
 }
 
-// NewProtocolManager returns a new aichain sub protocol manager. The AICHAIN sub protocol manages peers capable
-// with the aichain network.
+// NewProtocolManager returns a new AICHAIN sub protocol manager. The AICHAIN sub protocol manages peers capable
+// with the AICHAIN network.
 func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{

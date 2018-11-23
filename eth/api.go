@@ -132,7 +132,8 @@ func NewPrivateMinerAPI(e *AICHAIN) *PrivateMinerAPI {
 // Start the miner with the given number of threads. If threads is nil the number
 // of workers started is equal to the number of logical CPUs that are usable by
 // this process. If mining is already running, this method adjust the number of
-// threads allowed to use.
+// threads allowed to use and updates the minimum price required by the transaction
+// pool.
 func (api *PrivateMinerAPI) Start(threads *int) error {
 	// Set the number of threads if the seal engine supports it
 	if threads == nil {
@@ -153,7 +154,6 @@ func (api *PrivateMinerAPI) Start(threads *int) error {
 		api.e.lock.RLock()
 		price := api.e.gasPrice
 		api.e.lock.RUnlock()
-
 		api.e.txPool.SetGasPrice(price)
 		return api.e.StartMining(true)
 	}
