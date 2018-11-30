@@ -24,6 +24,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/metrics"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	cp "github.com/AICHAIN-CORE/go-aichain/swarm/chunk"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/spancontext"
@@ -229,6 +230,11 @@ R:
 	for req := range d.receiveC {
 		processReceivedChunksCount.Inc(1)
 
+		if len(req.SData) > cp.DefaultSize+8 {
+			log.Warn("received chunk is bigger than expected", "len", len(req.SData))
+			continue R
+		}
+
 		// this should be has locally
 		chunk, err := d.db.Get(context.TODO(), req.Addr)
 		if err == nil {
@@ -244,6 +250,7 @@ R:
 			continue R
 		default:
 		}
+
 		chunk.SData = req.SData
 		d.db.Put(context.TODO(), chunk)
 
