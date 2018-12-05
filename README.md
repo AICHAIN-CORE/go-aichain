@@ -27,13 +27,13 @@ The go-aichain project comes with several wrappers/executables found in the `cmd
 
 | Command    | Description |
 |:----------:|-------------|
-| **`gait`** | Our main AICHAIN CLI client. It is the entry point into the AICHAIN network (main-, test- or private net), capable of running as a full node (default) archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the AICHAIN network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `gait --help` and the [CLI Wiki page](https://github.com/AICHAIN-CORE/go-aichain/wiki/Command-Line-Options) for command line options. |
+| **`gait`** | Our main AICHAIN CLI client. It is the entry point into the AICHAIN network (main-, test- or private net), capable of running as a full node (default), archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the AICHAIN network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `gait --help` and the [CLI Wiki page](https://github.com/AICHAIN-CORE/go-aichain/wiki/Command-Line-Options) for command line options. |
 | `abigen` | Source code generator to convert AICHAIN contract definitions into easy to use, compile-time type-safe Go packages. It operates on plain [AICHAIN contract ABIs](https://github.com/AICHAIN-CORE/wiki/wiki/AICHAIN-Contract-ABI) with expanded functionality if the contract bytecode is also available. However it also accepts Solidity source files, making development much more streamlined. Please see our [Native DApps](https://github.com/AICHAIN-CORE/go-aichain/wiki/Native-DApps:-Go-bindings-to-AICHAIN-contracts) wiki page for details. |
 | `bootnode` | Stripped down version of our AICHAIN client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks. |
 | `evm` | Developer utility version of the EVM (AICHAIN Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode. Its purpose is to allow isolated, fine-grained debugging of EVM opcodes (e.g. `evm --code 60ff60ff --debug`). |
 | `gethrpctest` | Developer utility tool to support our [aichain/rpc-test](https://github.com/AICHAIN-CORE/rpc-tests) test suite which validates baseline conformity to the [AICHAIN JSON RPC](https://github.com/AICHAIN-CORE/wiki/wiki/JSON-RPC) specs. Please see the [test suite's readme](https://github.com/AICHAIN-CORE/rpc-tests/blob/master/README.md) for details. |
 | `rlpdump` | Developer utility tool to convert binary RLP ([Recursive Length Prefix](https://github.com/AICHAIN-CORE/wiki/wiki/RLP)) dumps (data encoding used by the AICHAIN protocol both network as well as consensus wise) to user friendlier hierarchical representation (e.g. `rlpdump --hex CE0183FFFFFFC4C304050583616263`). |
-| `swarm`    | swarm daemon and tools. This is the entrypoint for the swarm network. `swarm --help` for command line options and subcommands. See https://swarm-guide.readthedocs.io for swarm documentation. |
+| `swarm`    | Swarm daemon and tools. This is the entrypoint for the Swarm network. `swarm --help` for command line options and subcommands. See [Swarm README](https://github.com/AICHAIN-CORE/go-aichain/tree/master/swarm) for more information. |
 | `puppeth`    | a CLI wizard that aids in creating a new AICHAIN network. |
 
 ## Running gait
@@ -62,7 +62,7 @@ This command will:
  * Start up Gait's built-in interactive [JavaScript console](https://github.com/AICHAIN-CORE/go-aichain/wiki/JavaScript-Console),
    (via the trailing `console` subcommand) through which you can invoke all official [`web3` methods](https://github.com/AICHAIN-CORE/wiki/wiki/JavaScript-API)
    as well as Gait's own [management APIs](https://github.com/AICHAIN-CORE/go-aichain/wiki/Management-APIs).
-   This too is optional and if you leave it out you can always attach to an already running Gait instance
+   This tool is optional and if you leave it out you can always attach to an already running Gait instance
    with `gait attach`.
 
 ### Full node on the AICHAIN test network
@@ -127,7 +127,7 @@ Do not forget `--rpcaddr 0.0.0.0`, if you want to access RPC from other containe
 ### Programatically interfacing Gait nodes
 
 As a developer, sooner rather than later you'll want to start interacting with Gait and the AICHAIN
-network via your own programs and not manually through the console. To aid this, Gait has built in
+network via your own programs and not manually through the console. To aid this, Gait has built-in
 support for a JSON-RPC based APIs ([standard APIs](https://github.com/AICHAIN-CORE/wiki/wiki/JSON-RPC) and
 [Gait specific APIs](https://github.com/AICHAIN-CORE/go-aichain/wiki/Management-APIs)). These can be
 exposed via HTTP, WebSockets and IPC (unix sockets on unix based platforms, and named pipes on Windows).
