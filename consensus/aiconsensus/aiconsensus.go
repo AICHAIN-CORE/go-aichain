@@ -962,6 +962,13 @@ func (c *AiConsensus) Finalize(chain consensus.ChainReader, header *types.Header
 			blockReward = big.NewInt(1)
 		}
 	}
+
+	//If there is no tx in block, we should wait for more time.
+	if (header.Number.Uint64() >= c.config.ExtraPeriodForkBlockNumber) &&
+		(header.Difficulty.Cmp(diffPow) != 0) && (len(txs) == 0) {
+		header.Time = new(big.Int).Add(header.Time, new(big.Int).SetUint64(c.config.ExtraPeriod))
+	}
+
 	if header.Difficulty.Cmp(diffPooledMinerNoTurnPow) == 0 ||
 		header.Difficulty.Cmp(diffPow) == 0 ||
 		header.Difficulty.Cmp(diffNotPooledMinerPow) == 0 {
@@ -972,11 +979,7 @@ func (c *AiConsensus) Finalize(chain consensus.ChainReader, header *types.Header
 	} else if header.Difficulty.Cmp(diffValidatorInTurn) != 0 && header.Difficulty.Cmp(diffValidatorNoTurn) != 0 {
 		return nil, errInvalidDifficulty
 	}
-	//If there is no tx in block, we should wait for more time.
-	if (header.Number.Uint64() >= c.config.ExtraPeriodForkBlockNumber) &&
-		(header.Difficulty.Cmp(diffPow) != 0) && (len(txs) == 0) {
-		header.Time = new(big.Int).Add(header.Time, new(big.Int).SetUint64(c.config.ExtraPeriod))
-	}
+
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
 
