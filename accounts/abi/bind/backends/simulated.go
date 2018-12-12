@@ -31,7 +31,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/consensus/ethash"
 	"github.com/AICHAIN-CORE/go-aichain/core"
 	"github.com/AICHAIN-CORE/go-aichain/core/bloombits"
-        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/core/vm"
@@ -69,7 +69,7 @@ func NewSimulatedBackend(alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBac
 	database := ethdb.NewMemDatabase()
 	genesis := core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
 	genesis.MustCommit(database)
-	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{})
+	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil)
 
 	backend := &SimulatedBackend{
 		database:   database,
@@ -324,20 +324,20 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 //
 // TODO(karalabe): Deprecate when the subscription one can return past data too.
 func (b *SimulatedBackend) FilterLogs(ctx context.Context, query aichain.FilterQuery) ([]types.Log, error) {
-        var filter *filters.Filter
+	var filter *filters.Filter
 	if query.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
 		filter = filters.NewBlockFilter(&filterBackend{b.database, b.blockchain}, *query.BlockHash, query.Addresses, query.Topics)
-	} else {	
-        // Initialize unset filter boundaried to run from genesis to chain head
-	from := int64(0)
-	if query.FromBlock != nil {
-		from = query.FromBlock.Int64()
-	}
-	to := int64(-1)
-	if query.ToBlock != nil {
-		to = query.ToBlock.Int64()
-	}
+	} else {
+		// Initialize unset filter boundaried to run from genesis to chain head
+		from := int64(0)
+		if query.FromBlock != nil {
+			from = query.FromBlock.Int64()
+		}
+		to := int64(-1)
+		if query.ToBlock != nil {
+			to = query.ToBlock.Int64()
+		}
 		// Construct the range filter
 		filter = filters.NewRangeFilter(&filterBackend{b.database, b.blockchain}, from, to, query.Addresses, query.Topics)
 	}
