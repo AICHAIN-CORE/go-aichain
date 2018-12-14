@@ -28,7 +28,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
-        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/ethdb"
 	"github.com/AICHAIN-CORE/go-aichain/log"
@@ -281,8 +281,18 @@ func (hc *HeaderChain) InsertHeaderChain(chain []*types.Header, writeHeader WhCa
 	}
 	// Report some public statistics so the user has a clue what's going on
 	last := chain[len(chain)-1]
-	log.Info("Imported new block headers", "count", stats.processed, "elapsed", common.PrettyDuration(time.Since(start)),
-		"number", last.Number, "hash", last.Hash(), "ignored", stats.ignored)
+
+	context := []interface{}{
+		"count", stats.processed, "elapsed", common.PrettyDuration(time.Since(start)),
+		"number", last.Number, "hash", last.Hash(),
+	}
+	if timestamp := time.Unix(last.Time.Int64(), 0); time.Since(timestamp) > time.Minute {
+		context = append(context, []interface{}{"age", common.PrettyAge(timestamp)}...)
+	}
+	if stats.ignored > 0 {
+		context = append(context, []interface{}{"ignored", stats.ignored}...)
+	}
+	log.Info("Imported new block headers", context...)
 
 	return 0, nil
 }

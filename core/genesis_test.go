@@ -23,7 +23,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus/ethash"
-        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/vm"
 	"github.com/AICHAIN-CORE/go-aichain/ethdb"
 	"github.com/AICHAIN-CORE/go-aichain/params"
@@ -120,7 +120,7 @@ func TestSetupGenesis(t *testing.T) {
 				// Advance to block #4, past the homestead transition block of customg.
 				genesis := oldcustomg.MustCommit(db)
 
-				bc, _ := NewBlockChain(db, nil, oldcustomg.Config, ethash.NewFullFaker(), vm.Config{})
+				bc, _ := NewBlockChain(db, nil, oldcustomg.Config, ethash.NewFullFaker(), vm.Config{}, nil)
 				defer bc.Stop()
 
 				blocks, _ := GenerateChain(oldcustomg.Config, genesis, ethash.NewFaker(), db, 4, nil)
