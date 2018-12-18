@@ -18,7 +18,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,16 +25,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	swarm "github.com/AICHAIN-CORE/go-aichain/swarm/api/client"
-	colorable "github.com/mattn/go-colorable"
+	"github.com/mattn/go-colorable"
 )
-
-var loglevel = flag.Int("loglevel", 3, "verbosity of logs")
 
 func init() {
 	log.PrintOrigins(true)
@@ -45,18 +43,31 @@ func init() {
 // TestCLISwarmUp tests that running 'swarm up' makes the resulting file
 // available from all nodes via the HTTP API
 func TestCLISwarmUp(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip()
+	}
+
 	testCLISwarmUp(false, t)
 }
 func TestCLISwarmUpRecursive(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip()
+	}
 	testCLISwarmUpRecursive(false, t)
 }
 
 // TestCLISwarmUpEncrypted tests that running 'swarm encrypted-up' makes the resulting file
 // available from all nodes via the HTTP API
 func TestCLISwarmUpEncrypted(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip()
+	}
 	testCLISwarmUp(true, t)
 }
 func TestCLISwarmUpEncryptedRecursive(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip()
+	}
 	testCLISwarmUpRecursive(true, t)
 }
 
@@ -195,8 +206,8 @@ func testCLISwarmUpRecursive(toEncrypt bool, t *testing.T) {
 	for _, path := range []string{"tmp1", "tmp2"} {
 		if err := ioutil.WriteFile(filepath.Join(tmpUploadDir, path), bytes.NewBufferString(data).Bytes(), 0644); err != nil {
 			t.Fatal(err)
+		}
 	}
-}
 
 	hashRegexp := `[a-f\d]{64}`
 	flags := []string{
@@ -226,9 +237,9 @@ func testCLISwarmUpRecursive(toEncrypt bool, t *testing.T) {
 		log.Info("getting file from node", "node", node.Name)
 		//try to get the content with `swarm down`
 		tmpDownload, err := ioutil.TempDir("", "swarm-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+		if err != nil {
+			t.Fatal(err)
+		}
 		defer os.RemoveAll(tmpDownload)
 		bzzLocator := "bzz:/" + hash
 		flagss := []string{}
@@ -249,7 +260,7 @@ func testCLISwarmUpRecursive(toEncrypt bool, t *testing.T) {
 			fi, err := os.Stat(path.Join(tmpDownload, v.Name()))
 			if err != nil {
 				t.Fatalf("got an error: %v", err)
-}
+			}
 
 			switch mode := fi.Mode(); {
 			case mode.IsRegular():
@@ -270,13 +281,16 @@ func testCLISwarmUpRecursive(toEncrypt bool, t *testing.T) {
 		}
 		if err != nil {
 			t.Fatalf("could not list files at: %v", files)
-	}
+		}
 	}
 }
 
 // TestCLISwarmUpDefaultPath tests swarm recursive upload with relative and absolute
 // default paths and with encryption.
 func TestCLISwarmUpDefaultPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip()
+	}
 	testCLISwarmUpDefaultPath(false, false, t)
 	testCLISwarmUpDefaultPath(false, true, t)
 	testCLISwarmUpDefaultPath(true, false, t)

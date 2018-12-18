@@ -69,20 +69,20 @@ func download(ctx *cli.Context) {
 	}
 
 	dl := func(credentials string) error {
-	// assume behaviour according to --recursive switch
-	if isRecursive {
+		// assume behaviour according to --recursive switch
+		if isRecursive {
 			if err := client.DownloadDirectory(uri.Addr, uri.Path, dest, credentials); err != nil {
 				if err == swarm.ErrUnauthorized {
 					return err
 				}
 				return fmt.Errorf("directory %s: %v", uri.Path, err)
-		}
-	} else {
-		// we are downloading a file
+			}
+		} else {
+			// we are downloading a file
 			log.Debug("downloading file/path from a manifest", "uri.Addr", uri.Addr, "uri.Path", uri.Path)
 
 			err := client.DownloadFile(uri.Addr, uri.Path, dest, credentials)
-		if err != nil {
+			if err != nil {
 				if err == swarm.ErrUnauthorized {
 					return err
 				}
@@ -90,7 +90,7 @@ func download(ctx *cli.Context) {
 			}
 		}
 		return nil
-		}
+	}
 	if passwords := makePasswordList(ctx); passwords != nil {
 		password := getPassPhrase(fmt.Sprintf("Downloading %s is restricted", uri), 0, passwords)
 		err = dl(password)

@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -40,6 +41,8 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/rpc"
 	"github.com/AICHAIN-CORE/go-aichain/swarm"
 )
+
+var loglevel = flag.Int("loglevel", 3, "verbosity of logs")
 
 func init() {
 	// Run the app if we've been exec'd as "swarm-test" in runSwarm.
@@ -177,15 +180,15 @@ func (c *testCluster) Cleanup() {
 }
 
 type testNode struct {
-	Name   string
-	Addr   string
-	URL    string
-	Enode  string
-	Dir    string
-	IpcPath string
+	Name       string
+	Addr       string
+	URL        string
+	Enode      string
+	Dir        string
+	IpcPath    string
 	PrivateKey *ecdsa.PrivateKey
-	Client *rpc.Client
-	Cmd    *cmdtest.TestCmd
+	Client     *rpc.Client
+	Cmd        *cmdtest.TestCmd
 }
 
 const testPassphrase = "swarm-test-passphrase"
@@ -234,6 +237,7 @@ func existingTestNode(t *testing.T, dir string, bzzaccount string) *testNode {
 	// start the node
 	node.Cmd = runSwarm(t,
 		"--port", p2pPort,
+		"--nat", "extip:127.0.0.1",
 		"--nodiscover",
 		"--datadir", dir,
 		"--ipcpath", conf.IPCPath,
@@ -241,7 +245,7 @@ func existingTestNode(t *testing.T, dir string, bzzaccount string) *testNode {
 		"--bzzaccount", bzzaccount,
 		"--bzznetworkid", "321",
 		"--bzzport", httpPort,
-		"--verbosity", "6",
+		"--verbosity", fmt.Sprint(*loglevel),
 	)
 	node.Cmd.InputLine(testPassphrase)
 	defer func() {
@@ -284,8 +288,8 @@ func existingTestNode(t *testing.T, dir string, bzzaccount string) *testNode {
 	if err := node.Client.Call(&nodeInfo, "admin_nodeInfo"); err != nil {
 		t.Fatal(err)
 	}
-	node.Enode = fmt.Sprintf("enode://%s@127.0.0.1:%s", nodeInfo.ID, p2pPort)
-
+	node.Enode = nodeInfo.Enode
+	node.IpcPath = conf.IPCPath
 	return node
 }
 
@@ -309,6 +313,7 @@ func newTestNode(t *testing.T, dir string) *testNode {
 	// start the node
 	node.Cmd = runSwarm(t,
 		"--port", p2pPort,
+		"--nat", "extip:127.0.0.1",
 		"--nodiscover",
 		"--datadir", dir,
 		"--ipcpath", conf.IPCPath,
@@ -316,7 +321,7 @@ func newTestNode(t *testing.T, dir string) *testNode {
 		"--bzzaccount", account.Address.String(),
 		"--bzznetworkid", "321",
 		"--bzzport", httpPort,
-		"--verbosity", "6",
+		"--verbosity", fmt.Sprint(*loglevel),
 	)
 	node.Cmd.InputLine(testPassphrase)
 	defer func() {
@@ -359,9 +364,8 @@ func newTestNode(t *testing.T, dir string) *testNode {
 	if err := node.Client.Call(&nodeInfo, "admin_nodeInfo"); err != nil {
 		t.Fatal(err)
 	}
-	node.Enode = fmt.Sprintf("enode://%s@127.0.0.1:%s", nodeInfo.ID, p2pPort)
+	node.Enode = nodeInfo.Enode
 	node.IpcPath = conf.IPCPath
-
 	return node
 }
 
@@ -381,16 +385,16 @@ func (n *testNode) Shutdown() {
 // available ports.
 func getAvailableTCPPorts(count int) (ports []string, err error) {
 	for i := 0; i < count; i++ {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
 			return nil, err
-	}
+		}
 		// defer close in the loop to be sure the same port will not
 		// be selected in the next iteration
 		defer l.Close()
 
-	_, port, err := net.SplitHostPort(l.Addr().String())
-	if err != nil {
+		_, port, err := net.SplitHostPort(l.Addr().String())
+		if err != nil {
 			return nil, err
 		}
 		ports = append(ports, port)

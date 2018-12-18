@@ -56,7 +56,7 @@ func manifestAdd(ctx *cli.Context) {
 		utils.Fatalf("No entries in manifest %s", hash)
 	} else if l > 1 {
 		utils.Fatalf("Too many entries in manifest %s", hash)
-}
+	}
 
 	newManifest := addEntryToManifest(client, mhash, path, m.Entries[0])
 	fmt.Println(newManifest)
@@ -90,7 +90,7 @@ func manifestUpdate(ctx *cli.Context) {
 		utils.Fatalf("No entries in manifest %s", hash)
 	} else if l > 1 {
 		utils.Fatalf("Too many entries in manifest %s", hash)
-}
+	}
 
 	newManifest, _, defaultEntryUpdated := updateEntryInManifest(client, mhash, path, m.Entries[0], true)
 	if defaultEntryUpdated {

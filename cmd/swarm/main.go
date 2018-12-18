@@ -18,6 +18,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -37,11 +38,11 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/internal/debug"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/node"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/swarm"
 	bzzapi "github.com/AICHAIN-CORE/go-aichain/swarm/api"
 	swarmmetrics "github.com/AICHAIN-CORE/go-aichain/swarm/metrics"
-        "github.com/AICHAIN-CORE/go-aichain/swarm/tracing"
+	"github.com/AICHAIN-CORE/go-aichain/swarm/tracing"
 	sv "github.com/AICHAIN-CORE/go-aichain/swarm/version"
 
 	"gopkg.in/urfave/cli.v1"
@@ -66,7 +67,7 @@ OPTIONS:
 `
 
 var (
-	gitCommit        string // Git SHA1 commit hash of the release (set via linker flags)
+	gitCommit string // Git SHA1 commit hash of the release (set via linker flags)
 )
 
 var (
@@ -114,6 +115,12 @@ var (
 		Name:   "sync-update-delay",
 		Usage:  "Duration for sync subscriptions update after no new peers are added (default 15s)",
 		EnvVar: SWARM_ENV_SYNC_UPDATE_DELAY,
+	}
+	SwarmMaxStreamPeerServersFlag = cli.IntFlag{
+		Name:   "max-stream-peer-servers",
+		Usage:  "Limit of Stream peer servers, 0 denotes unlimited",
+		EnvVar: SWARM_ENV_MAX_STREAM_PEER_SERVERS,
+		Value:  10000, // A very large default value is possible as stream servers have very small memory footprint
 	}
 	SwarmLightNodeEnabled = cli.BoolFlag{
 		Name:   "lightnode",
@@ -196,17 +203,29 @@ var (
 		Usage:  "Number of recent chunks cached in memory (default 5000)",
 		EnvVar: SWARM_ENV_STORE_CACHE_CAPACITY,
 	}
-	SwarmResourceMultihashFlag = cli.BoolFlag{
-		Name:  "multihash",
-		Usage: "Determines how to interpret data for a resource update. If not present, data will be interpreted as raw, literal data that will be included in the resource",
+	SwarmCompressedFlag = cli.BoolFlag{
+		Name:  "compressed",
+		Usage: "Prints encryption keys in compressed form",
 	}
-	SwarmResourceNameFlag = cli.StringFlag{
+	SwarmFeedNameFlag = cli.StringFlag{
 		Name:  "name",
-		Usage: "User-defined name for the new resource",
+		Usage: "User-defined name for the new feed, limited to 32 characters. If combined with topic, it will refer to a subtopic with this name",
 	}
-	SwarmResourceDataOnCreateFlag = cli.StringFlag{
+	SwarmFeedTopicFlag = cli.StringFlag{
+		Name:  "topic",
+		Usage: "User-defined topic this feed is tracking, hex encoded. Limited to 64 hexadecimal characters",
+	}
+	SwarmFeedDataOnCreateFlag = cli.StringFlag{
 		Name:  "data",
-		Usage: "Initializes the resource with the given hex-encoded data. Data must be prefixed by 0x",
+		Usage: "Initializes the feed with the given hex-encoded data. Data must be prefixed by 0x",
+	}
+	SwarmFeedManifestFlag = cli.StringFlag{
+		Name:  "manifest",
+		Usage: "Refers to the feed through a manifest",
+	}
+	SwarmFeedUserFlag = cli.StringFlag{
+		Name:  "user",
+		Usage: "Indicates the user who updates the feed",
 	}
 )
 
@@ -237,27 +256,35 @@ func init() {
 	utils.ListenPortFlag.Value = 30399
 }
 
-var app = utils.NewApp(gitCommit, "AICHAIN Swarm")
+var app = utils.NewApp("", "AICHAIN Swarm")
 
 // This init function creates the cli.App.
 func init() {
 	app.Action = bzzd
-	app.HideVersion = true // we have a command to print the version
+	app.Version = sv.ArchiveVersion(gitCommit)
 	app.Copyright = "Copyright 2013-2016 The go-aichain Authors"
 	app.Commands = []cli.Command{
 		{
-			Action:    version,
+			Action:             version,
 			CustomHelpTemplate: helpTemplate,
-			Name:      "version",
-			Usage:     "Print version numbers",
+			Name:               "version",
+			Usage:              "Print version numbers",
 			Description:        "The output of this command is supposed to be machine-readable",
 		},
 		{
-			Action:    upload,
+			Action:             keys,
 			CustomHelpTemplate: helpTemplate,
-			Name:      "up",
+			Name:               "print-keys",
+			Flags:              []cli.Flag{SwarmCompressedFlag},
+			Usage:              "Print public key information",
+			Description:        "The output of this command is supposed to be machine-readable",
+		},
+		{
+			Action:             upload,
+			CustomHelpTemplate: helpTemplate,
+			Name:               "up",
 			Usage:              "uploads a file or directory to swarm using the HTTP API",
-			ArgsUsage: " <file>",
+			ArgsUsage:          "<file>",
 			Flags:              []cli.Flag{SwarmEncryptedFlag},
 			Description:        "uploads a file or directory to swarm using the HTTP API and prints the root hash",
 		},
@@ -306,6 +333,7 @@ func init() {
 							Flags: []cli.Flag{
 								SwarmAccessGrantKeysFlag,
 								SwarmDryRunFlag,
+								utils.PasswordFileFlag,
 							},
 							Name:        "act",
 							Usage:       "encrypts a reference with the node's private key and a given grantee's public key and embeds it into a root manifest",
@@ -318,65 +346,91 @@ func init() {
 		},
 		{
 			CustomHelpTemplate: helpTemplate,
-			Name:               "resource",
-			Usage:              "(Advanced) Create and update Mutable Resources",
+			Name:               "feed",
+			Usage:              "(Advanced) Create and update Swarm Feeds",
 			ArgsUsage:          "<create|update|info>",
-			Description:        "Works with Mutable Resource Updates",
+			Description:        "Works with Swarm Feeds",
 			Subcommands: []cli.Command{
 				{
-					Action:             resourceCreate,
+					Action:             feedCreateManifest,
 					CustomHelpTemplate: helpTemplate,
 					Name:               "create",
-					Usage:              "creates a new Mutable Resource",
-					ArgsUsage:          "<frequency>",
-					Description:        "creates a new Mutable Resource",
-					Flags:              []cli.Flag{SwarmResourceNameFlag, SwarmResourceDataOnCreateFlag, SwarmResourceMultihashFlag},
+					Usage:              "creates and publishes a new feed manifest",
+					Description: `creates and publishes a new feed manifest pointing to a specified user's updates about a particular topic.
+					The feed topic can be built in the following ways:
+					* use --topic to set the topic to an arbitrary binary hex string.
+					* use --name to set the topic to a human-readable name.
+					    For example --name could be set to "profile-picture", meaning this feed allows to get this user's current profile picture.
+					* use both --topic and --name to create named subtopics. 
+						For example, --topic could be set to an AICHAIN contract address and --name could be set to "comments", meaning
+						this feed tracks a discussion about that contract.
+					The --user flag allows to have this manifest refer to a user other than yourself. If not specified,
+					it will then default to your local account (--bzzaccount)`,
+					Flags: []cli.Flag{SwarmFeedNameFlag, SwarmFeedTopicFlag, SwarmFeedUserFlag},
 				},
 				{
-					Action:             resourceUpdate,
+					Action:             feedUpdate,
 					CustomHelpTemplate: helpTemplate,
 					Name:               "update",
-					Usage:              "updates the content of an existing Mutable Resource",
-					ArgsUsage:          "<Manifest Address or ENS domain> <0x Hex data>",
-					Description:        "updates the content of an existing Mutable Resource",
-					Flags:              []cli.Flag{SwarmResourceMultihashFlag},
+					Usage:              "updates the content of an existing Swarm Feed",
+					ArgsUsage:          "<0x Hex data>",
+					Description: `publishes a new update on the specified topic
+					The feed topic can be built in the following ways:
+					* use --topic to set the topic to an arbitrary binary hex string.
+					* use --name to set the topic to a human-readable name.
+					    For example --name could be set to "profile-picture", meaning this feed allows to get this user's current profile picture.
+					* use both --topic and --name to create named subtopics. 
+						For example, --topic could be set to an AICHAIN contract address and --name could be set to "comments", meaning
+						this feed tracks a discussion about that contract.
+					
+					If you have a manifest, you can specify it with --manifest to refer to the feed,
+					instead of using --topic / --name
+					`,
+					Flags: []cli.Flag{SwarmFeedManifestFlag, SwarmFeedNameFlag, SwarmFeedTopicFlag},
 				},
 				{
-					Action:             resourceInfo,
+					Action:             feedInfo,
 					CustomHelpTemplate: helpTemplate,
 					Name:               "info",
-					Usage:              "obtains information about an existing Mutable Resource",
-					ArgsUsage:          "<Manifest Address or ENS domain>",
-					Description:        "obtains information about an existing Mutable Resource",
+					Usage:              "obtains information about an existing Swarm feed",
+					Description: `obtains information about an existing Swarm feed
+					The topic can be specified directly with the --topic flag as an hex string
+					If no topic is specified, the default topic (zero) will be used
+					The --name flag can be used to specify subtopics with a specific name.
+					The --user flag allows to refer to a user other than yourself. If not specified,
+					it will then default to your local account (--bzzaccount)
+					If you have a manifest, you can specify it with --manifest instead of --topic / --name / ---user
+					to refer to the feed`,
+					Flags: []cli.Flag{SwarmFeedManifestFlag, SwarmFeedNameFlag, SwarmFeedTopicFlag, SwarmFeedUserFlag},
 				},
 			},
 		},
 		{
-			Action:    list,
+			Action:             list,
 			CustomHelpTemplate: helpTemplate,
-			Name:      "ls",
-			Usage:     "list files and directories contained in a manifest",
-			ArgsUsage: " <manifest> [<prefix>]",
+			Name:               "ls",
+			Usage:              "list files and directories contained in a manifest",
+			ArgsUsage:          "<manifest> [<prefix>]",
 			Description:        "Lists files and directories contained in a manifest",
 		},
 		{
-			Action:    hash,
+			Action:             hash,
 			CustomHelpTemplate: helpTemplate,
-			Name:      "hash",
-			Usage:     "print the swarm hash of a file or directory",
-			ArgsUsage: " <file>",
+			Name:               "hash",
+			Usage:              "print the swarm hash of a file or directory",
+			ArgsUsage:          "<file>",
 			Description:        "Prints the swarm hash of file or directory",
 		},
 		{
-			Action:    download,
-			Name:      "down",
+			Action:      download,
+			Name:        "down",
 			Flags:       []cli.Flag{SwarmRecursiveFlag, SwarmAccessPasswordFlag},
-			Usage:     "downloads a swarm manifest or a file inside a manifest",
-			ArgsUsage: " <uri> [<dir>]",
+			Usage:       "downloads a swarm manifest or a file inside a manifest",
+			ArgsUsage:   " <uri> [<dir>]",
 			Description: `Downloads a swarm bzz uri to the given dir. When no dir is provided, working directory is assumed. --recursive flag is expected when downloading a manifest with multiple entries.`,
 		},
 		{
-			Name:      "manifest",
+			Name:               "manifest",
 			CustomHelpTemplate: helpTemplate,
 			Usage:              "perform operations on swarm manifests",
 			ArgsUsage:          "COMMAND",
@@ -385,25 +439,25 @@ func init() {
 				{
 					Action:             manifestAdd,
 					CustomHelpTemplate: helpTemplate,
-					Name:      "add",
-					Usage:     "add a new path to the manifest",
+					Name:               "add",
+					Usage:              "add a new path to the manifest",
 					ArgsUsage:          "<MANIFEST> <path> <hash>",
 					Description:        "Adds a new path to the manifest",
 				},
 				{
 					Action:             manifestUpdate,
 					CustomHelpTemplate: helpTemplate,
-					Name:      "update",
-					Usage:     "update the hash for an already existing path in the manifest",
+					Name:               "update",
+					Usage:              "update the hash for an already existing path in the manifest",
 					ArgsUsage:          "<MANIFEST> <path> <newhash>",
 					Description:        "Update the hash for an already existing path in the manifest",
 				},
 				{
 					Action:             manifestRemove,
 					CustomHelpTemplate: helpTemplate,
-					Name:      "remove",
-					Usage:     "removes a path from the manifest",
-					ArgsUsage: "<MANIFEST> <path>",
+					Name:               "remove",
+					Usage:              "removes a path from the manifest",
+					ArgsUsage:          "<MANIFEST> <path>",
 					Description:        "Removes a path from the manifest",
 				},
 			},
@@ -445,18 +499,18 @@ func init() {
 			},
 		},
 		{
-			Name:      "db",
+			Name:               "db",
 			CustomHelpTemplate: helpTemplate,
-			Usage:     "manage the local chunk database",
-			ArgsUsage: "db COMMAND",
+			Usage:              "manage the local chunk database",
+			ArgsUsage:          "db COMMAND",
 			Description:        "Manage the local chunk database",
 			Subcommands: []cli.Command{
 				{
-					Action:    dbExport,
+					Action:             dbExport,
 					CustomHelpTemplate: helpTemplate,
-					Name:      "export",
-					Usage:     "export a local chunk database as a tar archive (use - to send to stdout)",
-					ArgsUsage: "<chunkdb> <file>",
+					Name:               "export",
+					Usage:              "export a local chunk database as a tar archive (use - to send to stdout)",
+					ArgsUsage:          "<chunkdb> <file>",
 					Description: `
 Export a local chunk database as a tar archive (use - to send to stdout).
 
@@ -469,11 +523,11 @@ pv(1) tool to get a progress bar:
 `,
 				},
 				{
-					Action:    dbImport,
+					Action:             dbImport,
 					CustomHelpTemplate: helpTemplate,
-					Name:      "import",
-					Usage:     "import chunks from a tar archive into a local chunk database (use - to read from stdin)",
-					ArgsUsage: "<chunkdb> <file>",
+					Name:               "import",
+					Usage:              "import chunks from a tar archive into a local chunk database (use - to read from stdin)",
+					ArgsUsage:          "<chunkdb> <file>",
 					Description: `Import chunks from a tar archive into a local chunk database (use - to read from stdin).
 
     swarm db import ~/.aichain/swarm/bzz-KEY/chunks chunks.tar
@@ -482,14 +536,6 @@ The import may be quite large, consider piping the input through the Unix
 pv(1) tool to get a progress bar:
 
     pv chunks.tar | swarm db import ~/.aichain/swarm/bzz-KEY/chunks -`,
-				},
-				{
-					Action:    dbClean,
-					CustomHelpTemplate: helpTemplate,
-					Name:      "clean",
-					Usage:     "remove corrupt entries from a local chunk database",
-					ArgsUsage: "<chunkdb>",
-					Description:        "Remove corrupt entries from a local chunk database",
 				},
 			},
 		},
@@ -528,6 +574,7 @@ pv(1) tool to get a progress bar:
 		SwarmSwapAPIFlag,
 		SwarmSyncDisabledFlag,
 		SwarmSyncUpdateDelay,
+		SwarmMaxStreamPeerServersFlag,
 		SwarmLightNodeEnabled,
 		SwarmDeliverySkipCheckFlag,
 		SwarmListenAddrFlag,
@@ -578,6 +625,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func keys(ctx *cli.Context) error {
+	privateKey := getPrivKey(ctx)
+	pub := hex.EncodeToString(crypto.FromECDSAPub(&privateKey.PublicKey))
+	pubCompressed := hex.EncodeToString(crypto.CompressPubkey(&privateKey.PublicKey))
+	if !ctx.Bool(SwarmCompressedFlag.Name) {
+		fmt.Println(fmt.Sprintf("publicKey=%s", pub))
+	}
+	fmt.Println(fmt.Sprintf("publicKeyCompressed=%s", pubCompressed))
+	return nil
 }
 
 func version(ctx *cli.Context) error {
@@ -672,7 +730,7 @@ func getAccount(bzzaccount string, ctx *cli.Context, stack *node.Node) *ecdsa.Pr
 }
 
 // getPrivKey returns the private key of the specified bzzaccount
-// Used only by client commands, such as `resource`
+// Used only by client commands, such as `feed`
 func getPrivKey(ctx *cli.Context) *ecdsa.PrivateKey {
 	// booting up the swarm node just as we do in bzzd action
 	bzzconfig, err := buildConfig(ctx)
@@ -763,10 +821,10 @@ func setSwarmBootstrapNodes(ctx *cli.Context, cfg *node.Config) {
 		return
 	}
 
-	cfg.P2P.BootstrapNodes = []*discover.Node{}
+	cfg.P2P.BootstrapNodes = []*enode.Node{}
 
 	for _, url := range SwarmBootnodes {
-		node, err := discover.ParseNode(url)
+		node, err := enode.ParseV4(url)
 		if err != nil {
 			log.Error("Bootstrap URL invalid", "enode", url, "err", err)
 		}
