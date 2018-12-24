@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	TestProtocolVersion   = 6
+	TestProtocolVersion   = 7
 	TestProtocolNetworkID = 3
 )
 
@@ -108,11 +108,7 @@ func newBzzBaseTester(t *testing.T, n int, addr *BzzAddr, spec *protocols.Spec, 
 	}
 
 	protocol := func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-		return srv(&BzzPeer{
-			Peer:      protocols.NewPeer(p, rw, spec),
-			localAddr: addr,
-			BzzAddr:   NewAddrFromNodeID(p.ID()),
-		})
+		return srv(&BzzPeer{Peer: protocols.NewPeer(p, rw, spec), BzzAddr: NewAddr(p.Node())})
 	}
 
 	s := p2ptest.NewProtocolTester(t, NewNodeIDFromAddr(addr), n, protocol)

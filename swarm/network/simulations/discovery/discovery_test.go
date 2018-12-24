@@ -263,7 +263,7 @@ func discoverySimulation(nodes, conns int, adapter adapters.NodeAdapter) (*simul
 	wg := sync.WaitGroup{}
 	for i := range ids {
 		// collect the overlay addresses, to
-		addrs = append(addrs, network.ToOverlayAddr(ids[i].Bytes()))
+		addrs = append(addrs, ids[i].Bytes())
 		for j := 0; j < conns; j++ {
 			var k int
 			if j == 0 {
@@ -298,8 +298,7 @@ func discoverySimulation(nodes, conns int, adapter adapters.NodeAdapter) (*simul
 			return false, fmt.Errorf("error getting node client: %s", err)
 		}
 		healthy := &network.Health{}
-		addr := common.Bytes2Hex(network.ToOverlayAddr(id.Bytes()))
-		if err := client.Call(&healthy, "hive_healthy", ppmap[addr]); err != nil {
+		if err := client.Call(&healthy, "hive_healthy", ppmap[id.String()]); err != nil {
 			return false, fmt.Errorf("error getting node health: %s", err)
 		}
 		log.Debug(fmt.Sprintf("node %4s healthy: got nearest neighbours: %v, know nearest neighbours: %v, saturated: %v\n%v", id, healthy.GotNN, healthy.KnowNN, healthy.Full, healthy.Hive))
@@ -371,7 +370,7 @@ func discoveryPersistenceSimulation(nodes, conns int, adapter adapters.NodeAdapt
 			return nil, fmt.Errorf("error triggering checks for node %s: %s", node.ID().TerminalString(), err)
 		}
 		ids[i] = node.ID()
-		a := network.ToOverlayAddr(ids[i].Bytes())
+		a := ids[i].Bytes()
 
 		addrs = append(addrs, a)
 	}
@@ -398,12 +397,12 @@ func discoveryPersistenceSimulation(nodes, conns int, adapter adapters.NodeAdapt
 					return fmt.Errorf("error getting node client: %s", err)
 				}
 				healthy := &network.Health{}
-				addr := common.Bytes2Hex(network.ToOverlayAddr(id.Bytes()))
+				addr := id.String()
 				if err := client.Call(&healthy, "hive_healthy", ppmap[addr]); err != nil {
 					return fmt.Errorf("error getting node health: %s", err)
 				}
 
-				log.Info(fmt.Sprintf("NODE: %s, IS HEALTHY: %t", id.String(), healthy.GotNN && healthy.KnowNN && healthy.Full))
+				log.Info(fmt.Sprintf("NODE: %s, IS HEALTHY: %t", addr, healthy.GotNN && healthy.KnowNN && healthy.Full))
 				if !healthy.GotNN || !healthy.Full {
 					isHealthy = false
 					break
@@ -478,8 +477,7 @@ func discoveryPersistenceSimulation(nodes, conns int, adapter adapters.NodeAdapt
 			return false, fmt.Errorf("error getting node client: %s", err)
 		}
 		healthy := &network.Health{}
-		addr := common.Bytes2Hex(network.ToOverlayAddr(id.Bytes()))
-		if err := client.Call(&healthy, "hive_healthy", ppmap[addr]); err != nil {
+		if err := client.Call(&healthy, "hive_healthy", ppmap[id.String()]); err != nil {
 			return false, fmt.Errorf("error getting node health: %s", err)
 		}
 		log.Info(fmt.Sprintf("node %4s healthy: got nearest neighbours: %v, know nearest neighbours: %v, saturated: %v", id, healthy.GotNN, healthy.KnowNN, healthy.Full))
@@ -556,8 +554,8 @@ func newService(ctx *adapters.ServiceContext) (node.Service, error) {
 	kp.MinProxBinSize = testMinProxBinSize
 
 	if ctx.Config.Reachable != nil {
-		kp.Reachable = func(o network.OverlayAddr) bool {
-			return ctx.Config.Reachable(o.(*network.BzzAddr).ID())
+		kp.Reachable = func(o *network.BzzAddr) bool {
+			return ctx.Config.Reachable(o.ID())
 		}
 	}
 	kad := network.NewKademlia(addr.Over(), kp)

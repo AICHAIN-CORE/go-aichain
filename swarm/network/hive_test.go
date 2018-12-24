@@ -97,12 +97,15 @@ func TestHiveStatePersistance(t *testing.T) {
 
 	pp.Start(s1.Server)
 	i := 0
-	pp.Overlay.EachAddr(nil, 256, func(addr OverlayAddr, po int, nn bool) bool {
-		delete(peers, addr.(*BzzAddr).String())
+	pp.Kademlia.EachAddr(nil, 256, func(addr *BzzAddr, po int, nn bool) bool {
+		delete(peers, addr.String())
 		i++
 		return true
 	})
-	if len(peers) != 0 || i != 5 {
-		t.Fatalf("invalid peers loaded")
+	if i != 5 {
+		t.Errorf("invalid number of entries: got %v, want %v", i, 5)
+	}
+	if len(peers) != 0 {
+		t.Fatalf("%d peers left over: %v", len(peers), peers)
 	}
 }
