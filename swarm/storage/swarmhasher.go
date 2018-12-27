@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	BMTHash  = "BMT"
-	SHA3Hash = "SHA3" // http://golang.org/pkg/hash/#Hash
+	BMTHash     = "BMT"
+	SHA3Hash    = "SHA3" // http://golang.org/pkg/hash/#Hash
 	DefaultHash = BMTHash
 )
 
