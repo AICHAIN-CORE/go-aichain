@@ -67,7 +67,6 @@ type LeafCallback func(leaf []byte, parent common.Hash) error
 type Trie struct {
 	db           *Database
 	root         node
-	originalRoot common.Hash
 
 	// Cache generation values.
 	// cachegen increases by one with each commit operation.
@@ -99,7 +98,6 @@ func New(root common.Hash, db *Database) (*Trie, error) {
 	}
 	trie := &Trie{
 		db:           db,
-		originalRoot: root,
 	}
 	if root != (common.Hash{}) && root != emptyRoot {
 		rootnode, err := trie.resolveHash(root[:], nil)
