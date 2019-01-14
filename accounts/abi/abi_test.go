@@ -1,5 +1,5 @@
 // Copyright 2018 The go-aichain Authors
-// Based on the go-aichain
+// Based on the go-ethereum
 // This file is part of the go-aichain library.
 //
 // The go-aichain library is free software: you can redistribute it and/or modify
@@ -712,5 +712,14 @@ func TestABI_MethodById(t *testing.T) {
 			t.Errorf("Method %v (id %v) not 'findable' by id in ABI", name, common.ToHex(m.Id()))
 		}
 	}
-
+	// Also test empty
+	if _, err := abi.MethodById([]byte{0x00}); err == nil {
+		t.Errorf("Expected error, too short to decode data")
+	}
+	if _, err := abi.MethodById([]byte{}); err == nil {
+		t.Errorf("Expected error, too short to decode data")
+	}
+	if _, err := abi.MethodById(nil); err == nil {
+		t.Errorf("Expected error, nil is short to decode data")
+	}
 }
