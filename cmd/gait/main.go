@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-        "github.com/AICHAIN-CORE/go-aichain/accounts"
+	"github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/accounts/keystore"
 	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"
 	"github.com/AICHAIN-CORE/go-aichain/common"
@@ -101,6 +101,7 @@ var (
 		utils.MinerNotifyFlag,
 		utils.MinerGasTargetFlag,
 		utils.MinerLegacyGasTargetFlag,
+		utils.MinerGasLimitFlag,
 		utils.MinerGasPriceFlag,
 		utils.MinerLegacyGasPriceFlag,
 		utils.MinerEtherbaseFlag,
@@ -128,6 +129,8 @@ var (
 		utils.NoCompactionFlag,
 		utils.GpoBlocksFlag,
 		utils.GpoPercentileFlag,
+		utils.EWASMInterpreterFlag,
+		utils.EVMInterpreterFlag,
 		configFileFlag,
 	}
 
@@ -149,6 +152,7 @@ var (
 		utils.WhisperEnabledFlag,
 		utils.WhisperMaxMessageSizeFlag,
 		utils.WhisperMinPOWFlag,
+		utils.WhisperRestrictConnectionBetweenLightClientsFlag,
 	}
 
 	metricsFlags = []cli.Flag{
@@ -227,13 +231,12 @@ func init() {
 		log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 		godebug.SetGCPercent(int(gogc))
 
-                // Start metrics export if enabled
+		// Start metrics export if enabled
 		utils.SetupMetrics(ctx)
 
 		// Start system runtime metrics collection
 		go metrics.CollectProcessMetrics(3 * time.Second)
 
-		utils.SetupNetwork(ctx)
 		return nil
 	}
 
@@ -255,7 +258,7 @@ func main() {
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
 func gait(ctx *cli.Context) error {
-        if args := ctx.Args(); len(args) > 0 {
+	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 	node := makeFullNode(ctx)

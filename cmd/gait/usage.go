@@ -33,7 +33,7 @@ import (
 var AppHelpTemplate = `NAME:
    {{.App.Name}} - {{.App.Usage}}
 
-   Copyright 2013-2017 The go-aichain Authors
+   Copyright 2013-2018 The go-aichain Authors
 
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
@@ -178,8 +178,11 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MinerNotifyFlag,
 			utils.MinerGasPriceFlag,
 			utils.MinerGasTargetFlag,
+			utils.MinerGasLimitFlag,
 			utils.MinerEtherbaseFlag,
 			utils.MinerExtraDataFlag,
+			utils.MinerRecommitIntervalFlag,
+			utils.MinerNoVerfiyFlag,
 		},
 	},
 	{
@@ -193,6 +196,8 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "VIRTUAL MACHINE",
 		Flags: []cli.Flag{
 			utils.VMEnableDebugFlag,
+			utils.EVMInterpreterFlag,
+			utils.EWASMInterpreterFlag,
 		},
 	},
 	{
