@@ -257,8 +257,8 @@ func (stats serverStats) render() {
 			if stats[server].failure != "" {
 				table.Append([]string{server, stats[server].failure, "", "", ""})
 			} else {
-			        table.Append([]string{server, stats[server].address, "", "", ""})
-		        }
+			table.Append([]string{server, stats[server].address, "", "", ""})
+		}
 		}
 		for j, service := range services {
 			// Add an empty line between all services

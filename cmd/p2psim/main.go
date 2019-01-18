@@ -47,7 +47,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations/adapters"
 	"github.com/AICHAIN-CORE/go-aichain/rpc"
@@ -285,7 +285,7 @@ func createNode(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		config.ID = discover.PubkeyID(&privKey.PublicKey)
+		config.ID = enode.PubkeyToIDV4(&privKey.PublicKey)
 		config.PrivateKey = privKey
 	}
 	if services := ctx.String("services"); services != "" {
