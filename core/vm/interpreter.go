@@ -285,13 +285,3 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 func (in *EVMInterpreter) CanRun(code []byte) bool {
 	return true
 }
-
-// IsReadOnly reports if the interpreter is in read only mode.
-func (in *EVMInterpreter) IsReadOnly() bool {
-	return in.readOnly
-}
-
-// SetReadOnly sets (or unsets) read only mode in the interpreter.
-func (in *EVMInterpreter) SetReadOnly(ro bool) {
-	in.readOnly = ro
-}
