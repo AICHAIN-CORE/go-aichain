@@ -9,7 +9,7 @@ import (
 )
 
 // curvePoint implements the elliptic curve y²=x³+3. Points are kept in
-// Jacobian form and t=z² when valid. G�?is the set of points of this curve on
+// Jacobian form and t=z² when valid. G₁ is the set of points of this curve on
 // GF(p).
 type curvePoint struct {
 	x, y, z, t *big.Int
@@ -17,7 +17,7 @@ type curvePoint struct {
 
 var curveB = new(big.Int).SetInt64(3)
 
-// curveGen is the generator of G�?
+// curveGen is the generator of G₁.
 var curveGen = &curvePoint{
 	new(big.Int).SetInt64(1),
 	new(big.Int).SetInt64(2),
@@ -245,8 +245,6 @@ func (c *curvePoint) Mul(a *curvePoint, scalar *big.Int, pool *bnPool) *curvePoi
 	return c
 }
 
-// MakeAffine converts c to affine form and returns c. If c is �? then it sets
-// c to 0 : 1 : 0.
 func (c *curvePoint) MakeAffine(pool *bnPool) *curvePoint {
 	if words := c.z.Bits(); len(words) == 1 && words[0] == 1 {
 		return c

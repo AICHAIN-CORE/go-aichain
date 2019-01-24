@@ -9,7 +9,7 @@ import (
 )
 
 // twistPoint implements the elliptic curve y²=x³+3/ξ over GF(p²). Points are
-// kept in Jacobian form and t=z² when valid. The group G�?is the set of
+// kept in Jacobian form and t=z² when valid. The group G₂ is the set of
 // n-torsion points of this curve over GF(p²) (where n = Order)
 type twistPoint struct {
 	x, y, z, t *gfP2
@@ -20,7 +20,7 @@ var twistB = &gfP2{
 	bigFromBase10("19485874751759354771024239261021720505790618469301721065564631296452457478373"),
 }
 
-// twistGen is the generator of group G�?
+// twistGen is the generator of group G₂.
 var twistGen = &twistPoint{
 	&gfP2{
 		bigFromBase10("11559732032986387107991004021392285783925812861821192530917403151452391805634"),
@@ -225,7 +225,7 @@ func (c *twistPoint) Mul(a *twistPoint, scalar *big.Int, pool *bnPool) *twistPoi
 	return c
 }
 
-// MakeAffine converts c to affine form and returns c. If c is �? then it sets
+// MakeAffine converts c to affine form and returns c. If c is ‚à? then it sets
 // c to 0 : 1 : 0.
 func (c *twistPoint) MakeAffine(pool *bnPool) *twistPoint {
 	if c.z.IsOne() {

@@ -21,7 +21,7 @@ func TestExamplePair(t *testing.T) {
 	b, _ := rand.Int(rand.Reader, Order)
 	c, _ := rand.Int(rand.Reader, Order)
 
-	// Then each party calculates g‚Ç?and g‚Ç?times their private value.
+	// Then each party calculates g‚ÇÅ and g‚ÇÇ times their private value.
 	pa := new(G1).ScalarBaseMult(a)
 	qa := new(G2).ScalarBaseMult(a)
 
