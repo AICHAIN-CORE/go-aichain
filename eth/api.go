@@ -29,10 +29,10 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/common/hexutil"
 	"github.com/AICHAIN-CORE/go-aichain/core"
-        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
-        "github.com/AICHAIN-CORE/go-aichain/internal/ethapi"
+	"github.com/AICHAIN-CORE/go-aichain/internal/ethapi"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/miner"
 	"github.com/AICHAIN-CORE/go-aichain/params"
@@ -65,6 +65,15 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 // Hashrate returns the POW hashrate
 func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
 	return hexutil.Uint64(api.e.Miner().HashRate())
+}
+
+// ChainId is the EIP-155 replay-protection chain id for the current aichain chain config.
+func (api *PublicEthereumAPI) ChainId() hexutil.Uint64 {
+	chainID := new(big.Int)
+	if config := api.e.chainConfig; config.IsEIP155(api.e.blockchain.CurrentBlock().Number()) {
+		chainID = config.ChainID
+	}
+	return (hexutil.Uint64)(chainID.Uint64())
 }
 
 // PublicMinerAPI provides an API to control the miner.
