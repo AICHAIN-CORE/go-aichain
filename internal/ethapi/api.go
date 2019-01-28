@@ -30,9 +30,9 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/common/hexutil"
 	"github.com/AICHAIN-CORE/go-aichain/common/math"
-	"github.com/AICHAIN-CORE/go-aichain/consensus/ethash"
+	"github.com/AICHAIN-CORE/go-aichain/consensus/aiconsensus/ethash"
 	"github.com/AICHAIN-CORE/go-aichain/core"
-        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/core/vm"
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	defaultGasPrice = 50 * params.Shannon
+	defaultGasPrice = 50 * params.GWei
 )
 
 // PublicEthereumAPI provides an API to access AICHAIN related information.
@@ -449,7 +449,7 @@ func (s *PrivateAccountAPI) Sign(ctx context.Context, data hexutil.Bytes, addr c
 // addr = ecrecover(hash, signature)
 //
 // Note, the signature must conform to the secp256k1 curve R, S and V values, where
-// the V value must be be 27 or 28 for legacy reasons.
+// the V value must be 27 or 28 for legacy reasons.
 //
 // https://github.com/AICHAIN-CORE/go-aichain/wiki/Management-APIs#personal_ecRecover
 func (s *PrivateAccountAPI) EcRecover(ctx context.Context, data, sig hexutil.Bytes) (common.Address, error) {
