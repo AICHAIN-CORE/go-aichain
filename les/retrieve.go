@@ -72,7 +72,7 @@ type sentReq struct {
 
 	lastReqQueued bool     // last request has been queued but not sent
 	lastReqSentTo distPeer // if not nil then last request has been sent to given peer but not timed out
-	reqSrtoCount int  // number of requests that reached soft (but not hard) timeout
+	reqSrtoCount  int      // number of requests that reached soft (but not hard) timeout
 }
 
 // sentReqToPeer notifies the request-from-peer goroutine (tryRequest) about a response
@@ -217,6 +217,13 @@ func (r *sentReq) stateRequesting() reqStateFn {
 			go r.tryRequest()
 			r.lastReqQueued = true
 			return r.stateRequesting
+		case rpDeliveredInvalid:
+			// if it was the last sent request (set to nil by update) then start a new one
+			if !r.lastReqQueued && r.lastReqSentTo == nil {
+				go r.tryRequest()
+				r.lastReqQueued = true
+			}
+			return r.stateRequesting
 		case rpDeliveredValid:
 			r.stop(nil)
 			return r.stateStopped
@@ -242,7 +249,11 @@ func (r *sentReq) stateNoMorePeers() reqStateFn {
 			r.stop(nil)
 			return r.stateStopped
 		}
-		return r.stateNoMorePeers
+		if r.waiting() {
+			return r.stateNoMorePeers
+		}
+		r.stop(light.ErrNoPeers)
+		return nil
 	case <-r.stopCh:
 		return r.stateStopped
 	}

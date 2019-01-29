@@ -119,16 +119,16 @@ func (n *wrsNode) insert(item wrsItem, weight int64) int {
 		n.items[branch] = item
 		return branch
 	}
-		var subNode *wrsNode
-		if n.items[branch] == nil {
-			subNode = &wrsNode{maxItems: n.maxItems / wrsBranches, level: n.level - 1}
-			n.items[branch] = subNode
-		} else {
-			subNode = n.items[branch].(*wrsNode)
-		}
-		subIdx := subNode.insert(item, weight)
-		return subNode.maxItems*branch + subIdx
+	var subNode *wrsNode
+	if n.items[branch] == nil {
+		subNode = &wrsNode{maxItems: n.maxItems / wrsBranches, level: n.level - 1}
+		n.items[branch] = subNode
+	} else {
+		subNode = n.items[branch].(*wrsNode)
 	}
+	subIdx := subNode.insert(item, weight)
+	return subNode.maxItems*branch + subIdx
+}
 
 // setWeight updates the weight of a certain item (which should exist) and returns
 // the change of the last weight value stored in the tree
@@ -162,9 +162,9 @@ func (n *wrsNode) choose(val int64) (wrsItem, int64) {
 			if n.level == 0 {
 				return n.items[i].(wrsItem), n.weights[i]
 			}
-				return n.items[i].(*wrsNode).choose(val)
-			}
-			val -= w
+			return n.items[i].(*wrsNode).choose(val)
 		}
+		val -= w
+	}
 	panic(nil)
 }

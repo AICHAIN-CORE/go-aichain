@@ -30,7 +30,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/common/mclock"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
 	"github.com/AICHAIN-CORE/go-aichain/core"
-        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/eth/downloader"
@@ -94,6 +94,7 @@ type ProtocolManager struct {
 	txrelay     *LesTxRelay
 	networkId   uint64
 	chainConfig *params.ChainConfig
+	iConfig     *light.IndexerConfig
 	blockchain  BlockChain
 	chainDb     ethdb.Database
 	odr         *LesOdr
@@ -123,13 +124,14 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new aichain sub protocol manager. The AICHAIN sub protocol manages peers capable
 // with the aichain network.
-func NewProtocolManager(chainConfig *params.ChainConfig, lightSync bool, networkId uint64, mux *event.TypeMux, engine consensus.Engine, peers *peerSet, blockchain BlockChain, txpool txPool, chainDb ethdb.Database, odr *LesOdr, txrelay *LesTxRelay, serverPool *serverPool, quitSync chan struct{}, wg *sync.WaitGroup) (*ProtocolManager, error) {
+func NewProtocolManager(chainConfig *params.ChainConfig, indexerConfig *light.IndexerConfig, lightSync bool, networkId uint64, mux *event.TypeMux, engine consensus.Engine, peers *peerSet, blockchain BlockChain, txpool txPool, chainDb ethdb.Database, odr *LesOdr, txrelay *LesTxRelay, serverPool *serverPool, quitSync chan struct{}, wg *sync.WaitGroup) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		lightSync:   lightSync,
 		eventMux:    mux,
 		blockchain:  blockchain,
 		chainConfig: chainConfig,
+		iConfig:     indexerConfig,
 		chainDb:     chainDb,
 		odr:         odr,
 		networkId:   networkId,
@@ -211,8 +213,7 @@ func (pm *ProtocolManager) runPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWrit
 	var entry *poolEntry
 	peer := pm.newPeer(int(version), pm.networkId, p, rw)
 	if pm.serverPool != nil {
-		addr := p.RemoteAddr().(*net.TCPAddr)
-		entry = pm.serverPool.connect(peer, addr.IP, uint16(addr.Port))
+		entry = pm.serverPool.connect(peer, peer.Node())
 	}
 	peer.poolEntry = entry
 	select {
@@ -380,7 +381,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 		if p.requestAnnounceType == announceTypeSigned {
-			if err := req.checkSignature(p.pubKey); err != nil {
+			if err := req.checkSignature(p.ID()); err != nil {
 				p.Log().Trace("Invalid announcement signature", "err", err)
 				return err
 			}
@@ -424,7 +425,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			if hashMode {
 				if first {
 					first = false
-				origin = pm.blockchain.GetHeaderByHash(query.Origin.Hash)
+					origin = pm.blockchain.GetHeaderByHash(query.Origin.Hash)
 					if origin != nil {
 						query.Origin.Number = origin.Number.Uint64()
 					}
@@ -447,7 +448,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				ancestor := query.Skip + 1
 				if ancestor == 0 {
 					unknown = true
-					} else {
+				} else {
 					query.Origin.Hash, query.Origin.Number = pm.blockchain.GetAncestor(query.Origin.Hash, query.Origin.Number, ancestor, &maxNonCanonical)
 					unknown = (query.Origin.Hash == common.Hash{})
 				}
@@ -467,12 +468,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 						expOldHash, _ := pm.blockchain.GetAncestor(nextHash, next, query.Skip+1, &maxNonCanonical)
 						if expOldHash == query.Origin.Hash {
 							query.Origin.Hash, query.Origin.Number = nextHash, next
+						} else {
+							unknown = true
+						}
 					} else {
 						unknown = true
 					}
-				} else {
-					unknown = true
-				}
 				}
 			case query.Reverse:
 				// Number based traversal towards the genesis block
@@ -542,10 +543,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			// Retrieve the requested block body, stopping if enough was found
 			if number := rawdb.ReadHeaderNumber(pm.chainDb, hash); number != nil {
 				if data := rawdb.ReadBodyRLP(pm.chainDb, hash, *number); len(data) != 0 {
-				bodies = append(bodies, data)
-				bytes += len(data)
+					bodies = append(bodies, data)
+					bytes += len(data)
+				}
 			}
-		}
 		}
 		bv, rcost := p.fcClient.RequestProcessed(costs.baseCost + uint64(reqCnt)*costs.reqCost)
 		pm.server.fcCostStats.update(msg.Code, uint64(reqCnt), rcost)
@@ -595,22 +596,22 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			// Retrieve the requested state entry, stopping if enough was found
 			if number := rawdb.ReadHeaderNumber(pm.chainDb, req.BHash); number != nil {
 				if header := rawdb.ReadHeader(pm.chainDb, req.BHash, *number); header != nil {
-				statedb, err := pm.blockchain.State()
-				if err != nil {
-					continue
-				}
-				account, err := pm.getAccount(statedb, header.Root, common.BytesToHash(req.AccKey))
-				if err != nil {
-					continue
-				}
-				code, _ := statedb.Database().TrieDB().Node(common.BytesToHash(account.CodeHash))
+					statedb, err := pm.blockchain.State()
+					if err != nil {
+						continue
+					}
+					account, err := pm.getAccount(statedb, header.Root, common.BytesToHash(req.AccKey))
+					if err != nil {
+						continue
+					}
+					code, _ := statedb.Database().TrieDB().Node(common.BytesToHash(account.CodeHash))
 
-				data = append(data, code)
-				if bytes += len(code); bytes >= softResponseLimit {
-					break
+					data = append(data, code)
+					if bytes += len(code); bytes >= softResponseLimit {
+						break
+					}
 				}
 			}
-		}
 		}
 		bv, rcost := p.fcClient.RequestProcessed(costs.baseCost + uint64(reqCnt)*costs.reqCost)
 		pm.server.fcCostStats.update(msg.Code, uint64(reqCnt), rcost)
@@ -726,31 +727,31 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			// Retrieve the requested state entry, stopping if enough was found
 			if number := rawdb.ReadHeaderNumber(pm.chainDb, req.BHash); number != nil {
 				if header := rawdb.ReadHeader(pm.chainDb, req.BHash, *number); header != nil {
-				statedb, err := pm.blockchain.State()
-				if err != nil {
-					continue
-				}
-				var trie state.Trie
-				if len(req.AccKey) > 0 {
-					account, err := pm.getAccount(statedb, header.Root, common.BytesToHash(req.AccKey))
+					statedb, err := pm.blockchain.State()
 					if err != nil {
 						continue
 					}
-					trie, _ = statedb.Database().OpenStorageTrie(common.BytesToHash(req.AccKey), account.Root)
-				} else {
-					trie, _ = statedb.Database().OpenTrie(header.Root)
-				}
-				if trie != nil {
-					var proof light.NodeList
-					trie.Prove(req.Key, 0, &proof)
+					var trie state.Trie
+					if len(req.AccKey) > 0 {
+						account, err := pm.getAccount(statedb, header.Root, common.BytesToHash(req.AccKey))
+						if err != nil {
+							continue
+						}
+						trie, _ = statedb.Database().OpenStorageTrie(common.BytesToHash(req.AccKey), account.Root)
+					} else {
+						trie, _ = statedb.Database().OpenTrie(header.Root)
+					}
+					if trie != nil {
+						var proof light.NodeList
+						trie.Prove(req.Key, 0, &proof)
 
-					proofs = append(proofs, proof)
-					if bytes += proof.DataSize(); bytes >= softResponseLimit {
-						break
+						proofs = append(proofs, proof)
+						if bytes += proof.DataSize(); bytes >= softResponseLimit {
+							break
+						}
 					}
 				}
 			}
-		}
 		}
 		bv, rcost := p.fcClient.RequestProcessed(costs.baseCost + uint64(reqCnt)*costs.reqCost)
 		pm.server.fcCostStats.update(msg.Code, uint64(reqCnt), rcost)
@@ -786,10 +787,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 				if number := rawdb.ReadHeaderNumber(pm.chainDb, req.BHash); number != nil {
 					if header := rawdb.ReadHeader(pm.chainDb, req.BHash, *number); header != nil {
-					statedb, _ = pm.blockchain.State()
-					root = header.Root
+						statedb, _ = pm.blockchain.State()
+						root = header.Root
+					}
 				}
-			}
 			}
 			if statedb == nil {
 				continue
@@ -882,7 +883,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		trieDb := trie.NewDatabase(ethdb.NewTable(pm.chainDb, light.ChtTablePrefix))
 		for _, req := range req.Reqs {
 			if header := pm.blockchain.GetHeaderByNumber(req.BlockNum); header != nil {
-				sectionHead := rawdb.ReadCanonicalHash(pm.chainDb, req.ChtNum*light.CHTFrequencyServer-1)
+				sectionHead := rawdb.ReadCanonicalHash(pm.chainDb, req.ChtNum*pm.iConfig.ChtSize-1)
 				if root := light.GetChtRoot(pm.chainDb, req.ChtNum-1, sectionHead); root != (common.Hash{}) {
 					trie, err := trie.New(root, trieDb)
 					if err != nil {
@@ -1137,10 +1138,11 @@ func (pm *ProtocolManager) getAccount(statedb *state.StateDB, root, hash common.
 func (pm *ProtocolManager) getHelperTrie(id uint, idx uint64) (common.Hash, string) {
 	switch id {
 	case htCanonical:
-		sectionHead := rawdb.ReadCanonicalHash(pm.chainDb, (idx+1)*light.CHTFrequencyClient-1)
-		return light.GetChtV2Root(pm.chainDb, idx, sectionHead), light.ChtTablePrefix
+		idxV1 := (idx+1)*(pm.iConfig.PairChtSize/pm.iConfig.ChtSize) - 1
+		sectionHead := rawdb.ReadCanonicalHash(pm.chainDb, (idxV1+1)*pm.iConfig.ChtSize-1)
+		return light.GetChtRoot(pm.chainDb, idxV1, sectionHead), light.ChtTablePrefix
 	case htBloomBits:
-		sectionHead := rawdb.ReadCanonicalHash(pm.chainDb, (idx+1)*light.BloomTrieFrequency-1)
+		sectionHead := rawdb.ReadCanonicalHash(pm.chainDb, (idx+1)*pm.iConfig.BloomTrieSize-1)
 		return light.GetBloomTrieRoot(pm.chainDb, idx, sectionHead), light.BloomTrieTablePrefix
 	}
 	return common.Hash{}, ""

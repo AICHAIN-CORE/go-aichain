@@ -25,7 +25,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/common/math"
 	"github.com/AICHAIN-CORE/go-aichain/core"
 	"github.com/AICHAIN-CORE/go-aichain/core/bloombits"
-        "github.com/AICHAIN-CORE/go-aichain/core/rawdb"
+	"github.com/AICHAIN-CORE/go-aichain/core/rawdb"
 	"github.com/AICHAIN-CORE/go-aichain/core/state"
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/core/vm"
@@ -192,7 +192,7 @@ func (b *LesApiBackend) BloomStatus() (uint64, uint64) {
 		return 0, 0
 	}
 	sections, _, _ := b.eth.bloomIndexer.Sections()
-	return light.BloomTrieFrequency, sections
+	return params.BloomBitsBlocksClient, sections
 }
 
 func (b *LesApiBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
