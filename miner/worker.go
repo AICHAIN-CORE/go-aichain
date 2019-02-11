@@ -25,7 +25,6 @@ import (
 	"sync/atomic"
 	"time"
 
-        mapset "github.com/deckarep/golang-set"
 	"github.com/AICHAIN-CORE/go-aichain/accounts"
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/consensus"
@@ -39,6 +38,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/event"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/params"
+	mapset "github.com/deckarep/golang-set"
 )
 
 const (
@@ -204,7 +204,7 @@ func (self *worker) pendingBlock() *types.Block {
 		self.snapshotMu.RLock()
 		defer self.snapshotMu.RUnlock()
 		return self.snapshotBlock
-}
+	}
 
 	self.currentMu.Lock()
 	defer self.currentMu.Unlock()
@@ -434,7 +434,7 @@ func (self *worker) commitNewWork() {
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     num.Add(num, common.Big1),
-		GasLimit:   core.CalcGasLimit(parent),
+		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
 		Extra:      self.extra,
 		Time:       big.NewInt(tstamp),
 	}
