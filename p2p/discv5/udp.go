@@ -36,9 +36,9 @@ const Version = 4
 
 // Errors
 var (
-	errPacketTooSmall   = errors.New("too small")
-	errBadPrefix        = errors.New("bad prefix")
-	errTimeout          = errors.New("RPC timeout")
+	errPacketTooSmall = errors.New("too small")
+	errBadPrefix      = errors.New("bad prefix")
+	errTimeout        = errors.New("RPC timeout")
 )
 
 // Timeouts
@@ -46,7 +46,7 @@ const (
 	respTimeout = 500 * time.Millisecond
 	expiration  = 20 * time.Second
 
-	driftThreshold      = 10 * time.Second // Allowed clock drift before warning user
+	driftThreshold = 10 * time.Second // Allowed clock drift before warning user
 )
 
 // RPC request structures
