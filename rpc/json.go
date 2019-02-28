@@ -76,13 +76,13 @@ type jsonNotification struct {
 // jsonCodec reads and writes JSON-RPC messages to the underlying connection. It
 // also has support for parsing arguments and serializing (result) objects.
 type jsonCodec struct {
-	closer sync.Once          // close closed channel once
-	closed chan interface{}   // closed on Close
+	closer sync.Once                 // close closed channel once
+	closed chan interface{}          // closed on Close
 	decMu  sync.Mutex                // guards the decoder
 	decode func(v interface{}) error // decoder to allow multiple transports
 	encMu  sync.Mutex                // guards the encoder
 	encode func(v interface{}) error // encoder to allow multiple transports
-	rw     io.ReadWriteCloser // connection
+	rw     io.ReadWriteCloser        // connection
 }
 
 func (err *jsonError) Error() string {

@@ -21,7 +21,7 @@ import (
 	"net"
 
 	"github.com/AICHAIN-CORE/go-aichain/log"
-        "github.com/AICHAIN-CORE/go-aichain/p2p/netutil"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/netutil"
 )
 
 // ServeListener accepts connections on l, serving JSON-RPC on them.

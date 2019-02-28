@@ -25,7 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-        mapset "github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 )
 
@@ -94,9 +94,9 @@ func (s *Server) RegisterName(name string, rcvr interface{}) error {
 
 	methods, subscriptions := suitableCallbacks(rcvrVal, svc.typ)
 
-		if len(methods) == 0 && len(subscriptions) == 0 {
-			return fmt.Errorf("Service %T doesn't have any suitable methods/subscriptions to expose", rcvr)
-		}
+	if len(methods) == 0 && len(subscriptions) == 0 {
+		return fmt.Errorf("Service %T doesn't have any suitable methods/subscriptions to expose", rcvr)
+	}
 
 	// already a previous service register under given name, merge methods/subscriptions
 	if regsvc, present := s.services[name]; present {
