@@ -27,7 +27,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/contracts/ens"
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/node"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/pss"
@@ -119,7 +119,7 @@ func (c *Config) Init(prvKey *ecdsa.PrivateKey) {
 
 	c.PublicKey = pubkeyhex
 	c.BzzKey = keyhex
-	c.NodeID = discover.PubkeyID(&prvKey.PublicKey).String()
+	c.NodeID = enode.PubkeyToIDV4(&prvKey.PublicKey).String()
 
 	if c.SwapEnabled {
 		c.Swap.Init(c.Contract, prvKey)
