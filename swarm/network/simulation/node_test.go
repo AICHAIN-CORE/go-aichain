@@ -25,7 +25,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/node"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations/adapters"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
 )
@@ -75,7 +75,7 @@ func TestUpDownNodeIDs(t *testing.T) {
 	}
 }
 
-func equalNodeIDs(one, other []discover.NodeID) bool {
+func equalNodeIDs(one, other []enode.ID) bool {
 	if len(one) != len(other) {
 		return false
 	}
@@ -244,7 +244,7 @@ func TestUploadSnapshot(t *testing.T) {
 	log.Debug("Creating simulation")
 	s := New(map[string]ServiceFunc{
 		"bzz": func(ctx *adapters.ServiceContext, b *sync.Map) (node.Service, func(), error) {
-			addr := network.NewAddrFromNodeID(ctx.Config.ID)
+			addr := network.NewAddr(ctx.Config.Node())
 			hp := network.NewHiveParams()
 			hp.Discovery = false
 			config := &network.BzzConfig{

@@ -25,7 +25,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/node"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations/adapters"
 )
@@ -45,8 +45,8 @@ type Simulation struct {
 
 	serviceNames []string
 	cleanupFuncs []func()
-	buckets      map[discover.NodeID]*sync.Map
-	pivotNodeID  *discover.NodeID
+	buckets      map[enode.ID]*sync.Map
+	pivotNodeID  *enode.ID
 	shutdownWG   sync.WaitGroup
 	done         chan struct{}
 	mu           sync.RWMutex
@@ -70,7 +70,7 @@ type ServiceFunc func(ctx *adapters.ServiceContext, bucket *sync.Map) (s node.Se
 // simulations.Network initialized with provided services.
 func New(services map[string]ServiceFunc) (s *Simulation) {
 	s = &Simulation{
-		buckets: make(map[discover.NodeID]*sync.Map),
+		buckets: make(map[enode.ID]*sync.Map),
 		done:    make(chan struct{}),
 	}
 
@@ -94,7 +94,7 @@ func New(services map[string]ServiceFunc) (s *Simulation) {
 	}
 
 	s.Net = simulations.NewNetwork(
-		adapters.NewTCPAdapter(adapterServices),  // old code is : NewSimAdapter
+		adapters.NewTCPAdapter(adapterServices),
 		&simulations.NetworkConfig{ID: "0"},
 	)
 
