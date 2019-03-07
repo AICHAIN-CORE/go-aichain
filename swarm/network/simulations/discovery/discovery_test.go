@@ -31,11 +31,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/node"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations/adapters"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
@@ -237,8 +236,8 @@ func discoverySimulation(nodes, conns int, adapter adapters.NodeAdapter) (*simul
 		DefaultService: serviceName,
 	})
 	defer net.Shutdown()
-	trigger := make(chan discover.NodeID)
-	ids := make([]discover.NodeID, nodes)
+	trigger := make(chan enode.ID)
+	ids := make([]enode.ID, nodes)
 	for i := 0; i < nodes; i++ {
 		conf := adapters.RandomNodeConfig()
 		node, err := net.NewNodeWithConfig(conf)
@@ -282,7 +281,7 @@ func discoverySimulation(nodes, conns int, adapter adapters.NodeAdapter) (*simul
 	log.Debug(fmt.Sprintf("nodes: %v", len(addrs)))
 	// construct the peer pot, so that kademlia health can be checked
 	ppmap := network.NewPeerPotMap(testMinProxBinSize, addrs)
-	check := func(ctx context.Context, id discover.NodeID) (bool, error) {
+	check := func(ctx context.Context, id enode.ID) (bool, error) {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
@@ -350,8 +349,8 @@ func discoveryPersistenceSimulation(nodes, conns int, adapter adapters.NodeAdapt
 		DefaultService: serviceName,
 	})
 	defer net.Shutdown()
-	trigger := make(chan discover.NodeID)
-	ids := make([]discover.NodeID, nodes)
+	trigger := make(chan enode.ID)
+	ids := make([]enode.ID, nodes)
 	var addrs [][]byte
 
 	for i := 0; i < nodes; i++ {
@@ -461,7 +460,7 @@ func discoveryPersistenceSimulation(nodes, conns int, adapter adapters.NodeAdapt
 	wg.Wait()
 	log.Debug(fmt.Sprintf("nodes: %v", len(addrs)))
 	// construct the peer pot, so that kademlia health can be checked
-	check := func(ctx context.Context, id discover.NodeID) (bool, error) {
+	check := func(ctx context.Context, id enode.ID) (bool, error) {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
@@ -508,7 +507,7 @@ func discoveryPersistenceSimulation(nodes, conns int, adapter adapters.NodeAdapt
 // triggerChecks triggers a simulation step check whenever a peer is added or
 // removed from the given node, and also every second to avoid a race between
 // peer events and kademlia becoming healthy
-func triggerChecks(trigger chan discover.NodeID, net *simulations.Network, id discover.NodeID) error {
+func triggerChecks(trigger chan enode.ID, net *simulations.Network, id enode.ID) error {
 	node := net.GetNode(id)
 	if node == nil {
 		return fmt.Errorf("unknown node: %s", id)
@@ -546,9 +545,8 @@ func triggerChecks(trigger chan discover.NodeID, net *simulations.Network, id di
 }
 
 func newService(ctx *adapters.ServiceContext) (node.Service, error) {
-	host := adapters.ExternalIP()
-
-	addr := network.NewAddrFromNodeIDAndPort(ctx.Config.ID, host, ctx.Config.Port)
+	node := enode.NewV4(&ctx.Config.PrivateKey.PublicKey, adapters.ExternalIP(), int(ctx.Config.Port), int(ctx.Config.Port))
+	addr := network.NewAddr(node)
 
 	kp := network.NewKadParams()
 	kp.MinProxBinSize = testMinProxBinSize
