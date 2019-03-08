@@ -31,7 +31,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/common"
 	"github.com/AICHAIN-CORE/go-aichain/node"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations/adapters"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
@@ -50,7 +50,7 @@ func TestSyncerSimulation(t *testing.T) {
 	testSyncBetweenNodes(t, 16, 1, dataChunkCount, true, 1)
 }
 
-func createMockStore(globalStore *mockdb.GlobalStore, id discover.NodeID, addr *network.BzzAddr) (lstore storage.ChunkStore, datadir string, err error) {
+func createMockStore(globalStore *mockdb.GlobalStore, id enode.ID, addr *network.BzzAddr) (lstore storage.ChunkStore, datadir string, err error) {
 	address := common.BytesToAddress(id.Bytes())
 	mockStore := globalStore.NewNodeStore(address)
 	params := storage.NewDefaultLocalStoreParams()
@@ -72,8 +72,8 @@ func testSyncBetweenNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck 
 			var globalStore *mockdb.GlobalStore
 			var gDir, datadir string
 
-			id := ctx.Config.ID
-			addr := network.NewAddrFromNodeID(id)
+			node := ctx.Config.Node()
+			addr := network.NewAddr(node)
 			//hack to put addresses in same space
 			addr.OAddr[0] = byte(0)
 
@@ -82,9 +82,9 @@ func testSyncBetweenNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck 
 				if err != nil {
 					return nil, nil, fmt.Errorf("Something went wrong; using mockStore enabled but globalStore is nil")
 				}
-				store, datadir, err = createMockStore(globalStore, id, addr)
+				store, datadir, err = createMockStore(globalStore, node.ID(), addr)
 			} else {
-				store, datadir, err = createTestLocalStorageForID(id, addr)
+				store, datadir, err = createTestLocalStorageForID(node.ID(), addr)
 			}
 			if err != nil {
 				return nil, nil, err
@@ -139,7 +139,7 @@ func testSyncBetweenNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck 
 	result := sim.Run(ctx, func(ctx context.Context, sim *simulation.Simulation) error {
 		nodeIDs := sim.UpNodeIDs()
 
-		nodeIndex := make(map[discover.NodeID]int)
+		nodeIndex := make(map[enode.ID]int)
 		for i, id := range nodeIDs {
 			nodeIndex[id] = i
 		}
@@ -224,9 +224,9 @@ func testSyncBetweenNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck 
 					db := item.(*storage.NetStore)
 					_, err := db.Get(ctx, key)
 					if err == nil {
-					found++
+						found++
+					}
 				}
-			}
 			}
 			log.Debug("sync check", "node", node, "index", i, "bin", po, "found", found, "total", total)
 		}

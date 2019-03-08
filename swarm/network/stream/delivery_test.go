@@ -281,7 +281,7 @@ func TestStreamerDownstreamChunkDeliveryMsgExchange(t *testing.T) {
 	// wait for the chunk to get stored
 	storedChunk, err := localStore.Get(ctx, chunkKey)
 	for err != nil {
-	select {
+		select {
 		case <-ctx.Done():
 			t.Fatalf("Chunk is not in localstore after timeout, err: %v", err)
 		default:
@@ -314,10 +314,9 @@ func TestDeliveryFromNodes(t *testing.T) {
 func testDeliveryFromNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck bool) {
 	sim := simulation.New(map[string]simulation.ServiceFunc{
 		"streamer": func(ctx *adapters.ServiceContext, bucket *sync.Map) (s node.Service, cleanup func(), err error) {
-
-			id := ctx.Config.ID
-			addr := network.NewAddrFromNodeID(id)
-			store, datadir, err := createTestLocalStorageForID(id, addr)
+			node := ctx.Config.Node()
+			addr := network.NewAddr(node)
+			store, datadir, err := createTestLocalStorageForID(node.ID(), addr)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -502,10 +501,9 @@ func BenchmarkDeliveryFromNodesWithCheck(b *testing.B) {
 func benchmarkDeliveryFromNodes(b *testing.B, nodes, conns, chunkCount int, skipCheck bool) {
 	sim := simulation.New(map[string]simulation.ServiceFunc{
 		"streamer": func(ctx *adapters.ServiceContext, bucket *sync.Map) (s node.Service, cleanup func(), err error) {
-
-			id := ctx.Config.ID
-			addr := network.NewAddrFromNodeID(id)
-			store, datadir, err := createTestLocalStorageForID(id, addr)
+			node := ctx.Config.Node()
+			addr := network.NewAddr(node)
+			store, datadir, err := createTestLocalStorageForID(node.ID(), addr)
 			if err != nil {
 				return nil, nil, err
 			}

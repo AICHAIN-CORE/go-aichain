@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"github.com/AICHAIN-CORE/go-aichain/log"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	p2ptest "github.com/AICHAIN-CORE/go-aichain/p2p/testing"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network/simulation"
@@ -240,7 +240,7 @@ func generateRandomFile() (string, error) {
 }
 
 //create a local store for the given node
-func createTestLocalStorageForID(id discover.NodeID, addr *network.BzzAddr) (storage.ChunkStore, string, error) {
+func createTestLocalStorageForID(id enode.ID, addr *network.BzzAddr) (storage.ChunkStore, string, error) {
 	var datadir string
 	var err error
 	datadir, err = ioutil.TempDir("", fmt.Sprintf("syncer-test-%s", id.TerminalString()))

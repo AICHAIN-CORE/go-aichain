@@ -19,12 +19,11 @@ package stream
 import (
 	"context"
 	"errors"
-	"time"
 
-	"github.com/AICHAIN-CORE/go-aichain/common"
+	"fmt"
+
 	"github.com/AICHAIN-CORE/go-aichain/metrics"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
-	cp "github.com/AICHAIN-CORE/go-aichain/swarm/chunk"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/spancontext"
@@ -48,7 +47,7 @@ var (
 type Delivery struct {
 	chunkStore storage.SyncChunkStore
 	kad        *network.Kademlia
-	getPeer  func(discover.NodeID) *Peer
+	getPeer    func(enode.ID) *Peer
 }
 
 func NewDelivery(kad *network.Kademlia, chunkStore storage.SyncChunkStore) *Delivery {
@@ -70,10 +69,10 @@ type SwarmChunkServer struct {
 // NewSwarmChunkServer is SwarmChunkServer constructor
 func NewSwarmChunkServer(chunkStore storage.ChunkStore) *SwarmChunkServer {
 	s := &SwarmChunkServer{
-		deliveryC: make(chan []byte, deliveryCap),
-		batchC:    make(chan []byte),
+		deliveryC:  make(chan []byte, deliveryCap),
+		batchC:     make(chan []byte),
 		chunkStore: chunkStore,
-		quit:      make(chan struct{}),
+		quit:       make(chan struct{}),
 	}
 	go s.processDeliveries()
 	return s
@@ -155,20 +154,20 @@ func (d *Delivery) handleRetrieveRequestMsg(ctx context.Context, sp *Peer, req *
 	ctx, cancel = context.WithTimeout(ctx, network.RequestTimeout)
 
 	go func() {
-			select {
+		select {
 		case <-ctx.Done():
 		case <-streamer.quit:
-			}
+		}
 		cancel()
 	}()
 
 	go func() {
 		chunk, err := d.chunkStore.Get(ctx, req.Addr)
-				if err != nil {
+		if err != nil {
 			log.Warn("ChunkStore.Get can not retrieve chunk", "err", err)
 			return
-	}
-	if req.SkipCheck {
+		}
+		if req.SkipCheck {
 			err = sp.Deliver(ctx, chunk, s.priority)
 			if err != nil {
 				log.Warn("ERROR in handleRetrieveRequestMsg", "err", err)
@@ -178,7 +177,7 @@ func (d *Delivery) handleRetrieveRequestMsg(ctx context.Context, sp *Peer, req *
 		select {
 		case streamer.deliveryC <- chunk.Address()[:]:
 		case <-streamer.quit:
-	}
+		}
 
 	}()
 
@@ -199,7 +198,7 @@ func (d *Delivery) handleChunkDeliveryMsg(ctx context.Context, sp *Peer, req *Ch
 		"chunk.delivery")
 	defer osp.Finish()
 
-		processReceivedChunksCount.Inc(1)
+	processReceivedChunksCount.Inc(1)
 
 	go func() {
 		req.peer = sp
@@ -211,13 +210,13 @@ func (d *Delivery) handleChunkDeliveryMsg(ctx context.Context, sp *Peer, req *Ch
 				// log.Warn("invalid chunk delivered", "peer", sp.ID(), "chunk", req.Addr, )
 				req.peer.Drop(err)
 			}
-	}
+		}
 	}()
 	return nil
 }
 
 // RequestFromPeers sends a chunk retrieve request to
-func (d *Delivery) RequestFromPeers(ctx context.Context, req *network.Request) (*discover.NodeID, chan struct{}, error) {
+func (d *Delivery) RequestFromPeers(ctx context.Context, req *network.Request) (*enode.ID, chan struct{}, error) {
 	requestFromPeersCount.Inc(1)
 	var sp *Peer
 	spID := req.Source
@@ -226,7 +225,7 @@ func (d *Delivery) RequestFromPeers(ctx context.Context, req *network.Request) (
 		sp = d.getPeer(*spID)
 		if sp == nil {
 			return nil, nil, fmt.Errorf("source peer %v not found", spID.String())
-			}
+		}
 	} else {
 		d.kad.EachConn(req.Addr[:], 255, func(p *network.Peer, po int, nn bool) bool {
 			id := p.ID()
@@ -234,12 +233,12 @@ func (d *Delivery) RequestFromPeers(ctx context.Context, req *network.Request) (
 			if req.SkipPeer(id.String()) {
 				log.Trace("Delivery.RequestFromPeers: skip peer", "peer id", id)
 				return true
-		}
+			}
 			sp = d.getPeer(id)
-		if sp == nil {
+			if sp == nil {
 				log.Warn("Delivery.RequestFromPeers: peer not found", "id", id)
-			return true
-		}
+				return true
+			}
 			spID = &id
 			return false
 		})
@@ -252,11 +251,11 @@ func (d *Delivery) RequestFromPeers(ctx context.Context, req *network.Request) (
 		Addr:      req.Addr,
 		SkipCheck: req.SkipCheck,
 		HopCount:  req.HopCount,
-		}, Top)
-		if err != nil {
+	}, Top)
+	if err != nil {
 		return nil, nil, err
-		}
-		requestFromPeersEachCount.Inc(1)
+	}
+	requestFromPeersEachCount.Inc(1)
 
 	return spID, sp.quit, nil
 }
