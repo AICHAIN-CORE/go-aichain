@@ -26,7 +26,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/protocols"
 	"github.com/AICHAIN-CORE/go-aichain/rpc"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
@@ -78,7 +78,7 @@ type Bzz struct {
 	LightNode    bool
 	localAddr    *BzzAddr
 	mtx          sync.Mutex
-	handshakes   map[discover.NodeID]*HandshakeMsg
+	handshakes   map[enode.ID]*HandshakeMsg
 	streamerSpec *protocols.Spec
 	streamerRun  func(*BzzPeer) error
 }
@@ -94,11 +94,11 @@ func NewBzz(config *BzzConfig, kad *Kademlia, store state.Store, streamerSpec *p
 		NetworkID:    config.NetworkID,
 		LightNode:    config.LightNode,
 		localAddr:    &BzzAddr{config.OverlayAddr, config.UnderlayAddr},
-		handshakes:   make(map[discover.NodeID]*HandshakeMsg),
+		handshakes:   make(map[enode.ID]*HandshakeMsg),
 		streamerRun:  streamerRun,
 		streamerSpec: streamerSpec,
 	}
-	}
+}
 
 // UpdateLocalAddr updates underlayaddress of the running node
 func (b *Bzz) UpdateLocalAddr(byteaddr []byte) *BzzAddr {
@@ -112,7 +112,7 @@ func (b *Bzz) UpdateLocalAddr(byteaddr []byte) *BzzAddr {
 // NodeInfo returns the node's overlay address
 func (b *Bzz) NodeInfo() interface{} {
 	return b.localAddr.Address()
-		}
+}
 
 // Protocols return the protocols swarm offers
 // Bzz implements the node.Service interface
@@ -135,7 +135,7 @@ func (b *Bzz) Protocols() []p2p.Protocol {
 			NodeInfo: b.Hive.NodeInfo,
 			PeerInfo: b.Hive.PeerInfo,
 		},
-		}
+	}
 	if b.streamerSpec != nil && b.streamerRun != nil {
 		protocol = append(protocol, p2p.Protocol{
 			Name:    b.streamerSpec.Name,
@@ -143,9 +143,9 @@ func (b *Bzz) Protocols() []p2p.Protocol {
 			Length:  b.streamerSpec.Length(),
 			Run:     b.RunProtocol(b.streamerSpec, b.streamerRun),
 		})
-		}
+	}
 	return protocol
-		}
+}
 
 // APIs returns the APIs offered by bzz
 // * hive
@@ -156,7 +156,7 @@ func (b *Bzz) APIs() []rpc.API {
 		Version:   "3.0",
 		Service:   b.Hive,
 	}}
-		}
+}
 
 // RunProtocol is a wrapper for swarm subprotocols
 // returns a p2p protocol run function that can be assigned to p2p.Protocol#Run field
@@ -191,8 +191,8 @@ func (b *Bzz) RunProtocol(spec *protocols.Spec, run func(*BzzPeer) error) func(*
 		log.Debug("peer created", "addr", handshake.peerAddr.String())
 
 		return run(peer)
-			}
-		}
+	}
+}
 
 // performHandshake implements the negotiation of the bzz handshake
 // shared among swarm subprotocols
@@ -244,16 +244,16 @@ type BzzPeer struct {
 	*BzzAddr                  // remote address -> implements Addr interface = protocols.Peer
 	lastActive      time.Time // time is updated whenever mutexes are releasing
 	LightNode       bool
-	}
+}
 
 func NewBzzPeer(p *protocols.Peer) *BzzPeer {
 	return &BzzPeer{Peer: p, BzzAddr: NewAddr(p.Node())}
-	}
+}
 
 // LastActive returns the time the peer was last active
 func (p *BzzPeer) LastActive() time.Time {
 	return p.lastActive
-	}
+}
 
 // ID returns the peer's underlay node identifier.
 func (p *BzzPeer) ID() enode.ID {
@@ -287,14 +287,14 @@ type HandshakeMsg struct {
 // String pretty prints the handshake
 func (bh *HandshakeMsg) String() string {
 	return fmt.Sprintf("Handshake: Version: %v, NetworkID: %v, Addr: %v, LightNode: %v, peerAddr: %v", bh.Version, bh.NetworkID, bh.Addr, bh.LightNode, bh.peerAddr)
-	}
+}
 
 // Perform initiates the handshake and validates the remote handshake message
 func (b *Bzz) checkHandshake(hs interface{}) error {
 	rhs := hs.(*HandshakeMsg)
 	if rhs.NetworkID != b.NetworkID {
 		return fmt.Errorf("network id mismatch %d (!= %d)", rhs.NetworkID, b.NetworkID)
-		}
+	}
 	if rhs.Version != uint64(BzzSpec.Version) {
 		return fmt.Errorf("version mismatch %d (!= %d)", rhs.Version, BzzSpec.Version)
 	}
@@ -303,14 +303,14 @@ func (b *Bzz) checkHandshake(hs interface{}) error {
 
 // removeHandshake removes handshake for peer with peerID
 // from the bzz handshake store
-func (b *Bzz) removeHandshake(peerID discover.NodeID) {
+func (b *Bzz) removeHandshake(peerID enode.ID) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	delete(b.handshakes, peerID)
 }
 
 // GetHandshake returns the bzz handhake that the remote peer with peerID sent
-func (b *Bzz) GetHandshake(peerID discover.NodeID) (*HandshakeMsg, bool) {
+func (b *Bzz) GetHandshake(peerID enode.ID) (*HandshakeMsg, bool) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	handshake, found := b.handshakes[peerID]
@@ -322,15 +322,15 @@ func (b *Bzz) GetHandshake(peerID discover.NodeID) (*HandshakeMsg, bool) {
 			LightNode: b.LightNode,
 			init:      make(chan bool, 1),
 			done:      make(chan struct{}),
-	}
+		}
 		// when handhsake is first created for a remote peer
 		// it is initialised with the init
 		handshake.init <- true
 		b.handshakes[peerID] = handshake
-}
+	}
 
 	return handshake, found
-	}
+}
 
 // BzzAddr implements the PeerAddr interface
 type BzzAddr struct {
@@ -351,12 +351,16 @@ func (a *BzzAddr) Over() []byte {
 // Under returns the underlay address.
 func (a *BzzAddr) Under() []byte {
 	return a.UAddr
-	}
+}
 
-// ID returns the nodeID from the underlay enode address
-func (a *BzzAddr) ID() discover.NodeID {
-	return discover.MustParseNode(string(a.UAddr)).ID
+// ID returns the node identifier in the underlay.
+func (a *BzzAddr) ID() enode.ID {
+	n, err := enode.ParseV4(string(a.UAddr))
+	if err != nil {
+		return enode.ID{}
 	}
+	return n.ID()
+}
 
 // Update updates the underlay address of a peer record
 func (a *BzzAddr) Update(na *BzzAddr) *BzzAddr {
@@ -374,38 +378,11 @@ func RandomAddr() *BzzAddr {
 	if err != nil {
 		panic("unable to generate key")
 	}
-	pubkey := crypto.FromECDSAPub(&key.PublicKey)
-	var id discover.NodeID
-	copy(id[:], pubkey[1:])
-	return NewAddrFromNodeID(id)
+	node := enode.NewV4(&key.PublicKey, net.IP{127, 0, 0, 1}, 30303, 30303)
+	return NewAddr(node)
 }
 
-// NewNodeIDFromAddr transforms the underlay address to an adapters.NodeID
-func NewNodeIDFromAddr(addr Addr) discover.NodeID {
-	log.Info(fmt.Sprintf("uaddr=%s", string(addr.Under())))
-	node := discover.MustParseNode(string(addr.Under()))
-	return node.ID
-}
-
-// NewAddrFromNodeID constucts a BzzAddr from a discover.NodeID
-// the overlay address is derived as the hash of the nodeID
-func NewAddrFromNodeID(id discover.NodeID) *BzzAddr {
-	return &BzzAddr{
-		OAddr: ToOverlayAddr(id.Bytes()),
-		UAddr: []byte(discover.NewNode(id, net.IP{127, 0, 0, 1}, 30303, 30303).String()),
-}
-}
-
-// NewAddrFromNodeIDAndPort constucts a BzzAddr from a discover.NodeID and port uint16
-// the overlay address is derived as the hash of the nodeID
-func NewAddrFromNodeIDAndPort(id discover.NodeID, host net.IP, port uint16) *BzzAddr {
-	return &BzzAddr{
-		OAddr: ToOverlayAddr(id.Bytes()),
-		UAddr: []byte(discover.NewNode(id, host, port, port).String()),
-	}
-	}
-
-// ToOverlayAddr creates an overlayaddress from a byte slice
-func ToOverlayAddr(id []byte) []byte {
-	return crypto.Keccak256(id)
+// NewAddr constucts a BzzAddr from a node record.
+func NewAddr(node *enode.Node) *BzzAddr {
+	return &BzzAddr{OAddr: node.ID().Bytes(), UAddr: []byte(node.String())}
 }

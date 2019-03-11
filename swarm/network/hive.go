@@ -23,7 +23,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/common/hexutil"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/state"
 )
@@ -56,13 +56,13 @@ func NewHiveParams() *HiveParams {
 
 // Hive manages network connections of the swarm node
 type Hive struct {
-	*HiveParams                      // settings
+	*HiveParams                   // settings
 	*Kademlia                     // the overlay connectiviy driver
-	Store       state.Store          // storage interface to save peers across sessions
-	addPeer     func(*discover.Node) // server callback to connect to a peer
+	Store       state.Store       // storage interface to save peers across sessions
+	addPeer     func(*enode.Node) // server callback to connect to a peer
 	// bookkeeping
 	lock   sync.Mutex
-        peers  map[discover.Node.ID]*BzzPeer
+	peers  map[enode.ID]*BzzPeer
 	ticker *time.Ticker
 }
 
@@ -75,7 +75,7 @@ func NewHive(params *HiveParams, kad *Kademlia, store state.Store) *Hive {
 		HiveParams: params,
 		Kademlia:   kad,
 		Store:      store,
-		peers:      make(map[discover.Node.ID]*BzzPeer),
+		peers:      make(map[enode.ID]*BzzPeer),
 	}
 }
 
@@ -90,8 +90,8 @@ func (h *Hive) Start(server *p2p.Server) error {
 		if err := h.loadPeers(); err != nil {
 			log.Error(fmt.Sprintf("%08x hive encoutered an error trying to load peers", h.BaseAddr()[:4]))
 			return err
-}
-}
+		}
+	}
 	// assigns the p2p.Server#AddPeer function to connect to peers
 	h.addPeer = server.AddPeer
 	// ticker to keep the hive alive
@@ -108,11 +108,11 @@ func (h *Hive) Stop() error {
 	if h.Store != nil {
 		if err := h.savePeers(); err != nil {
 			return fmt.Errorf("could not save peers to persistence store: %v", err)
-}
+		}
 		if err := h.Store.Close(); err != nil {
 			return fmt.Errorf("could not close file handle to persistence store: %v", err)
+		}
 	}
-			}
 	log.Info(fmt.Sprintf("%08x hive stopped, dropping peers", h.BaseAddr()[:4]))
 	h.EachConn(nil, 255, func(p *Peer, _ int, _ bool) bool {
 		log.Info(fmt.Sprintf("%08x dropping peer %08x", h.BaseAddr()[:4], p.Address()[:4]))
@@ -133,17 +133,17 @@ func (h *Hive) connect() {
 		addr, depth, changed := h.SuggestPeer()
 		if h.Discovery && changed {
 			NotifyDepth(uint8(depth), h.Kademlia)
-			}
+		}
 		if addr == nil {
 			continue
-}
+		}
 
 		log.Trace(fmt.Sprintf("%08x hive connect() suggested %08x", h.BaseAddr()[:4], addr.Address()[:4]))
-		under, err := discover.ParseNode(string(addr.(Addr).Under()))
-	if err != nil {
+		under, err := enode.ParseV4(string(addr.Under()))
+		if err != nil {
 			log.Warn(fmt.Sprintf("%08x unable to connect to bee %08x: invalid node URL: %v", h.BaseAddr()[:4], addr.Address()[:4], err))
 			continue
-	}
+		}
 		log.Trace(fmt.Sprintf("%08x attempt to connect to bee %08x", h.BaseAddr()[:4], addr.Address()[:4]))
 		h.addPeer(under)
 	}
@@ -164,7 +164,7 @@ func (h *Hive) Run(p *BzzPeer) error {
 		} else {
 			// otherwise just send depth to new peer
 			dp.NotifyDepth(depth)
-	}
+		}
 	}
 	NotifyPeer(p.BzzAddr, h.Kademlia)
 	defer h.Off(dp)
@@ -191,15 +191,15 @@ func (h *Hive) NodeInfo() interface{} {
 
 // PeerInfo function is used by the p2p.server RPC interface to display
 // protocol specific information any connected peer referred to by their NodeID
-func (h *Hive) PeerInfo(id discover.NodeID) interface{} {
-        h.lock.Lock()
+func (h *Hive) PeerInfo(id enode.ID) interface{} {
+	h.lock.Lock()
 	p := h.peers[id]
 	h.lock.Unlock()
 
 	if p == nil {
 		return nil
 	}
-	addr := NewAddrFromNodeID(id)
+	addr := NewAddr(p.Node())
 	return struct {
 		OAddr hexutil.Bytes
 		UAddr hexutil.Bytes
@@ -216,14 +216,14 @@ func (h *Hive) loadPeers() error {
 	if err != nil {
 		if err == state.ErrNotFound {
 			log.Info(fmt.Sprintf("hive %08x: no persisted peers found", h.BaseAddr()[:4]))
-		return nil
+			return nil
+		}
+		return err
 	}
-	return err
-}
 	log.Info(fmt.Sprintf("hive %08x: peers loaded", h.BaseAddr()[:4]))
 
 	return h.Register(as...)
-			}
+}
 
 // savePeers, savePeer implement persistence callback/
 func (h *Hive) savePeers() error {
@@ -232,13 +232,13 @@ func (h *Hive) savePeers() error {
 		if pa == nil {
 			log.Warn(fmt.Sprintf("empty addr: %v", i))
 			return true
-			}
+		}
 		log.Trace("saving peer", "peer", pa)
 		peers = append(peers, pa)
 		return true
 	})
 	if err := h.Store.Put("peers", peers); err != nil {
 		return fmt.Errorf("could not save peers: %v", err)
-		}
+	}
 	return nil
 }

@@ -39,9 +39,9 @@ func TestRegisterAndConnect(t *testing.T) {
 	params := NewHiveParams()
 	s, pp := newHiveTester(t, params, 1, nil)
 
-	id := s.IDs[0]
-	raddr := NewAddrFromNodeID(id)
-	pp.Register([]OverlayAddr{OverlayAddr(raddr)})
+	node := s.Nodes[0]
+	raddr := NewAddr(node)
+	pp.Register(raddr)
 
 	// start the hive and wait for the connection
 	err := pp.Start(s.Server)
@@ -51,7 +51,7 @@ func TestRegisterAndConnect(t *testing.T) {
 	defer pp.Stop()
 	// retrieve and broadcast
 	err = s.TestDisconnected(&p2ptest.Disconnect{
-		Peer:  s.IDs[0],
+		Peer:  s.Nodes[0].ID(),
 		Error: nil,
 	})
 
@@ -75,9 +75,9 @@ func TestHiveStatePersistance(t *testing.T) {
 	s, pp := newHiveTester(t, params, 5, store)
 
 	peers := make(map[string]bool)
-	for _, id := range s.IDs {
-		raddr := NewAddrFromNodeID(id)
-		pp.Register([]OverlayAddr{OverlayAddr(raddr)})
+	for _, node := range s.Nodes {
+		raddr := NewAddr(node)
+		pp.Register(raddr)
 		peers[raddr.String()] = true
 	}
 
