@@ -30,7 +30,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/metrics"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/protocols"
 	"github.com/AICHAIN-CORE/go-aichain/rpc"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/log"
@@ -70,7 +70,7 @@ type pssCacheEntry struct {
 // abstraction to enable access to p2p.protocols.Peer.Send
 type senderPeer interface {
 	Info() *p2p.PeerInfo
-	ID() discover.NodeID
+	ID() enode.ID
 	Address() []byte
 	Send(context.Context, interface{}) error
 }
@@ -110,10 +110,10 @@ func (params *PssParams) WithPrivateKey(privatekey *ecdsa.PrivateKey) *PssParams
 //
 // Implements node.Service
 type Pss struct {
-	network.Overlay                   // we can get the overlayaddress from this
-	privateKey      *ecdsa.PrivateKey // pss can have it's own independent key
-	w               *whisper.Whisper  // key and encryption backend
-	auxAPIs         []rpc.API         // builtins (handshake, test) can add APIs
+	*network.Kademlia                   // we can get the Kademlia address from this
+	privateKey        *ecdsa.PrivateKey // pss can have it's own independent key
+	w                 *whisper.Whisper  // key and encryption backend
+	auxAPIs           []rpc.API         // builtins (handshake, test) can add APIs
 
 	// sending and forwarding
 	fwdPool         map[string]*protocols.Peer // keep track of all peers sitting on the pssmsg routing layer
@@ -430,8 +430,7 @@ func (p *Pss) process(pssmsg *PssMsg) error {
 
 func (p *Pss) executeHandlers(topic Topic, payload []byte, from *PssAddress, asymmetric bool, keyid string) {
 	handlers := p.getHandlers(topic)
-	nid, _ := discover.HexID("0x00") // this hack is needed to satisfy the p2p method
-	peer := p2p.NewPeer(nid, fmt.Sprintf("%x", from), []p2p.Cap{})
+	peer := p2p.NewPeer(enode.ID{}, fmt.Sprintf("%x", from), []p2p.Cap{})
 	for f := range handlers {
 		err := (*f)(payload, peer, asymmetric, keyid)
 		if err != nil {
