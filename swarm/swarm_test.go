@@ -332,7 +332,7 @@ func TestLocalStoreAndRetrieve(t *testing.T) {
 // a file of length n with optional random data using API Store function,
 // and checks the output of API Retrieve function on the same instance.
 // This is a regression test for issue
-// https://github.com/ethersphere/go-ethereum/issues/639
+// https://github.com/ethersphere/go-aichain/issues/639
 // where pyramid chunker did not split correctly files with lengths that
 // are edge cases for chunk and tree parameters, depending whether there
 // is a tree chunk with only one data chunk and how the compress functionality

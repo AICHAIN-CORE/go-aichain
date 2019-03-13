@@ -36,7 +36,7 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/ethclient"
 	"github.com/AICHAIN-CORE/go-aichain/metrics"
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/protocols"
 	"github.com/AICHAIN-CORE/go-aichain/params"
 	"github.com/AICHAIN-CORE/go-aichain/rpc"
@@ -171,16 +171,11 @@ func NewSwarm(config *api.Config, mockStore *mock.NodeStore) (self *Swarm, err e
 	delivery := stream.NewDelivery(to, self.netStore)
 	self.netStore.NewNetFetcherFunc = network.NewFetcherFactory(delivery.RequestFromPeers, config.DeliverySkipCheck).New
 
-        nodeID, err := discover.HexID(config.NodeID)
-	if err != nil {
+	var nodeID enode.ID
+	if err := nodeID.UnmarshalText([]byte(config.NodeID)); err != nil {
 		return nil, err
 	}
-	addr := &network.BzzAddr{
-		OAddr: common.FromHex(config.BzzKey),
-		UAddr: []byte(discover.NewNode(nodeID, net.IP{127, 0, 0, 1}, 30323, 30323).String()),
-	}
-
-	self.streamer = stream.NewRegistry(addr, delivery, self.netStore, stateStore, &stream.RegistryOptions{
+	self.streamer = stream.NewRegistry(nodeID, delivery, self.netStore, stateStore, &stream.RegistryOptions{
 		SkipCheck:       config.DeliverySkipCheck,
 		DoSync:          config.SyncEnabled,
 		DoRetrieve:      true,

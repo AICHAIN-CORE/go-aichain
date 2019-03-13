@@ -31,10 +31,9 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
 	"github.com/AICHAIN-CORE/go-aichain/log"
 	"github.com/AICHAIN-CORE/go-aichain/node"
-	"github.com/AICHAIN-CORE/go-aichain/p2p/discover"
+	"github.com/AICHAIN-CORE/go-aichain/p2p/enode"
 	"github.com/AICHAIN-CORE/go-aichain/p2p/simulations/adapters"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/api"
-	"github.com/AICHAIN-CORE/go-aichain/swarm/network"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/network/simulation"
 	"github.com/AICHAIN-CORE/go-aichain/swarm/storage"
 	colorable "github.com/mattn/go-colorable"
@@ -235,14 +234,14 @@ type testSwarmNetworkStep struct {
 type file struct {
 	addr   storage.Address
 	data   string
-	nodeID discover.NodeID
+	nodeID enode.ID
 }
 
 // check represents a reference to a file that is retrieved
 // from a particular node.
 type check struct {
 	key    string
-	nodeID discover.NodeID
+	nodeID enode.ID
 }
 
 // testSwarmNetworkOptions contains optional parameters for running
@@ -441,7 +440,7 @@ func retrieve(
 
 			checkCount++
 			wg.Add(1)
-			go func(f file, id discover.NodeID) {
+			go func(f file, id enode.ID) {
 				defer wg.Done()
 
 				log.Debug("api get: check file", "node", id.String(), "key", f.addr.String(), "total files found", atomic.LoadUint64(totalFoundCount))
@@ -467,7 +466,7 @@ func retrieve(
 			}(f, id)
 		}
 
-		go func(id discover.NodeID) {
+		go func(id enode.ID) {
 			defer totalWg.Done()
 			wg.Wait()
 
