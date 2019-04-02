@@ -26,7 +26,7 @@ import (
 
 	"github.com/AICHAIN-CORE/go-aichain/cmd/utils"
 	"github.com/AICHAIN-CORE/go-aichain/internal/debug"
-	"gopkg.in/urfave/cli.v1"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 // AppHelpTemplate is the test template for the default, global app help topic.
@@ -81,6 +81,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.LightServFlag,
 			utils.LightPeersFlag,
 			utils.LightKDFFlag,
+			utils.WhitelistFlag,
 		},
 	},
 	{
@@ -121,6 +122,7 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.CacheFlag,
 			utils.CacheDatabaseFlag,
+			utils.CacheTrieFlag,
 			utils.CacheGCFlag,
 			utils.TrieCacheGenFlag,
 		},
@@ -216,7 +218,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MetricsInfluxDBDatabaseFlag,
 			utils.MetricsInfluxDBUsernameFlag,
 			utils.MetricsInfluxDBPasswordFlag,
-			utils.MetricsInfluxDBHostTagFlag,
+			utils.MetricsInfluxDBTagsFlag,
 		},
 	},
 	{
