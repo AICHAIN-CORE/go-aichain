@@ -40,6 +40,8 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/p2p"
 	"github.com/AICHAIN-CORE/go-aichain/rpc"
 	"github.com/AICHAIN-CORE/go-aichain/swarm"
+	"github.com/AICHAIN-CORE/go-aichain/swarm/api"
+	swarmhttp "github.com/AICHAIN-CORE/go-aichain/swarm/api/http"
 )
 
 var loglevel = flag.Int("loglevel", 3, "verbosity of logs")
@@ -55,6 +57,20 @@ func init() {
 	})
 }
 
+const clusterSize = 3
+
+var clusteronce sync.Once
+var cluster *testCluster
+
+func initCluster(t *testing.T) {
+	clusteronce.Do(func() {
+		cluster = newTestCluster(t, clusterSize)
+	})
+}
+
+func serverFunc(api *api.API) swarmhttp.TestServer {
+	return swarmhttp.NewServer(api, "")
+}
 func TestMain(m *testing.M) {
 	// check if we have been reexec'd
 	if reexec.Init() {
@@ -238,7 +254,6 @@ func existingTestNode(t *testing.T, dir string, bzzaccount string) *testNode {
 	node.Cmd = runSwarm(t,
 		"--port", p2pPort,
 		"--nat", "extip:127.0.0.1",
-		"--nodiscover",
 		"--datadir", dir,
 		"--ipcpath", conf.IPCPath,
 		"--ens-api", "",
@@ -314,7 +329,6 @@ func newTestNode(t *testing.T, dir string) *testNode {
 	node.Cmd = runSwarm(t,
 		"--port", p2pPort,
 		"--nat", "extip:127.0.0.1",
-		"--nodiscover",
 		"--datadir", dir,
 		"--ipcpath", conf.IPCPath,
 		"--ens-api", "",

@@ -1,4 +1,4 @@
-// Copyright 2016 The go-aichain Authors
+// Copyright 2019 The go-aichain Authors
 // This file is part of go-aichain.
 //
 // go-aichain is free software: you can redistribute it and/or modify
@@ -27,19 +27,19 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-var hashCommand = cli.Command{
-	Action:             hash,
+var hashesCommand = cli.Command{
+	Action:             hashes,
 	CustomHelpTemplate: helpTemplate,
-	Name:               "hash",
-	Usage:              "print the swarm hash of a file or directory",
+	Name:               "hashes",
+	Usage:              "print all hashes of a file to STDOUT",
 	ArgsUsage:          "<file>",
-	Description:        "Prints the swarm hash of file or directory",
+	Description:        "Prints all hashes of a file to STDOUT",
 }
 
-func hash(ctx *cli.Context) {
+func hashes(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
-		utils.Fatalf("Usage: swarm hash <file name>")
+		utils.Fatalf("Usage: swarm hashes <file name>")
 	}
 	f, err := os.Open(args[0])
 	if err != nil {
@@ -47,12 +47,13 @@ func hash(ctx *cli.Context) {
 	}
 	defer f.Close()
 
-	stat, _ := f.Stat()
 	fileStore := storage.NewFileStore(&storage.FakeChunkStore{}, storage.NewFileStoreParams())
-	addr, _, err := fileStore.Store(context.TODO(), f, stat.Size(), false)
+	refs, err := fileStore.GetAllReferences(context.TODO(), f, false)
 	if err != nil {
 		utils.Fatalf("%v\n", err)
 	} else {
-		fmt.Printf("%v\n", addr)
+		for _, r := range refs {
+			fmt.Println(r.String())
+		}
 	}
 }
