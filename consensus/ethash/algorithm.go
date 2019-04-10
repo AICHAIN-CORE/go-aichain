@@ -21,7 +21,7 @@ import (
 	"hash"
 
 	"github.com/AICHAIN-CORE/go-aichain/crypto/lyra2dc"
-	"github.com/AICHAIN-CORE/go-aichain/crypto/sha3"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -71,7 +71,7 @@ func seedHash(block uint64) []byte {
 	if block < epochLength {
 		return seed
 	}
-	keccak256 := makeHasher(sha3.NewKeccak256())
+	keccak256 := makeHasher(sha3.NewLegacyKeccak256())
 	for i := 0; i < int(block/epochLength); i++ {
 		keccak256(seed, seed)
 	}
@@ -110,7 +110,7 @@ func hashimoto(hash []byte, nonce uint64) []byte {
 	copy(minedata, hash)
 
 	// add nonceData at the end of hash
-        binary.LittleEndian.PutUint64(minedata[len(hash):], nonce)
+	binary.LittleEndian.PutUint64(minedata[len(hash):], nonce)
 
 	mineHash, errTest := lyra2dc.Do_lyra2DC(minedata)
 	if errTest != nil {
