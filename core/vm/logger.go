@@ -65,6 +65,7 @@ type StructLog struct {
 	Stack      []*big.Int                  `json:"stack"`
 	Storage    map[common.Hash]common.Hash `json:"-"`
 	Depth      int                         `json:"depth"`
+	RefundCounter uint64                      `json:"refund"`
 	Err        error                       `json:"-"`
 }
 
@@ -177,7 +178,7 @@ func (l *StructLogger) CaptureState(env *EVM, pc uint64, op OpCode, gas, cost ui
 		storage = l.changedValues[contract.Address()].Copy()
 	}
 	// create a new snaptshot of the EVM.
-	log := StructLog{pc, op, gas, cost, mem, memory.Len(), stck, storage, depth, err}
+	log := StructLog{pc, op, gas, cost, mem, memory.Len(), stck, storage, depth, env.StateDB.GetRefund(), err}
 
 	l.logs = append(l.logs, log)
 	return nil
