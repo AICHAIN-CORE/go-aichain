@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-aichain library. If not, see <http://www.gnu.org/licenses/>.
 
+// +build !js
+
 package ethdb
 
 import (
@@ -30,7 +32,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-        "github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 const (
@@ -43,9 +45,9 @@ type LDBDatabase struct {
 	fn string      // filename for reporting
 	db *leveldb.DB // LevelDB instance
 
-	compTimeMeter  metrics.Meter // Meter for measuring the total time spent in database compaction
-	compReadMeter  metrics.Meter // Meter for measuring the data read during compaction
-	compWriteMeter metrics.Meter // Meter for measuring the data written during compaction
+	compTimeMeter    metrics.Meter // Meter for measuring the total time spent in database compaction
+	compReadMeter    metrics.Meter // Meter for measuring the data read during compaction
+	compWriteMeter   metrics.Meter // Meter for measuring the data written during compaction
 	writeDelayNMeter metrics.Meter // Meter for measuring the write delay number due to database compaction
 	writeDelayMeter  metrics.Meter // Meter for measuring the write delay duration due to database compaction
 	diskReadMeter    metrics.Meter // Meter for measuring the effective amount of data read
@@ -159,8 +161,8 @@ func (db *LDBDatabase) Meter(prefix string) {
 	db.compTimeMeter = metrics.NewRegisteredMeter(prefix+"compact/time", nil)
 	db.compReadMeter = metrics.NewRegisteredMeter(prefix+"compact/input", nil)
 	db.compWriteMeter = metrics.NewRegisteredMeter(prefix+"compact/output", nil)
-		db.diskReadMeter = metrics.NewRegisteredMeter(prefix+"disk/read", nil)
-		db.diskWriteMeter = metrics.NewRegisteredMeter(prefix+"disk/write", nil)
+	db.diskReadMeter = metrics.NewRegisteredMeter(prefix+"disk/read", nil)
+	db.diskWriteMeter = metrics.NewRegisteredMeter(prefix+"disk/write", nil)
 	db.writeDelayMeter = metrics.NewRegisteredMeter(prefix+"compact/writedelay/duration", nil)
 	db.writeDelayNMeter = metrics.NewRegisteredMeter(prefix+"compact/writedelay/counter", nil)
 
@@ -379,72 +381,4 @@ func (b *ldbBatch) ValueSize() int {
 func (b *ldbBatch) Reset() {
 	b.b.Reset()
 	b.size = 0
-}
-
-type table struct {
-	db     Database
-	prefix string
-}
-
-// NewTable returns a Database object that prefixes all keys with a given
-// string.
-func NewTable(db Database, prefix string) Database {
-	return &table{
-		db:     db,
-		prefix: prefix,
-	}
-}
-
-func (dt *table) Put(key []byte, value []byte) error {
-	return dt.db.Put(append([]byte(dt.prefix), key...), value)
-}
-
-func (dt *table) Has(key []byte) (bool, error) {
-	return dt.db.Has(append([]byte(dt.prefix), key...))
-}
-
-func (dt *table) Get(key []byte) ([]byte, error) {
-	return dt.db.Get(append([]byte(dt.prefix), key...))
-}
-
-func (dt *table) Delete(key []byte) error {
-	return dt.db.Delete(append([]byte(dt.prefix), key...))
-}
-
-func (dt *table) Close() {
-	// Do nothing; don't close the underlying DB.
-}
-
-type tableBatch struct {
-	batch  Batch
-	prefix string
-}
-
-// NewTableBatch returns a Batch object which prefixes all keys with a given string.
-func NewTableBatch(db Database, prefix string) Batch {
-	return &tableBatch{db.NewBatch(), prefix}
-}
-
-func (dt *table) NewBatch() Batch {
-	return &tableBatch{dt.db.NewBatch(), dt.prefix}
-}
-
-func (tb *tableBatch) Put(key, value []byte) error {
-	return tb.batch.Put(append([]byte(tb.prefix), key...), value)
-}
-
-func (tb *tableBatch) Delete(key []byte) error {
-	return tb.batch.Delete(append([]byte(tb.prefix), key...))
-}
-
-func (tb *tableBatch) Write() error {
-	return tb.batch.Write()
-}
-
-func (tb *tableBatch) ValueSize() int {
-	return tb.batch.ValueSize()
-}
-
-func (tb *tableBatch) Reset() {
-	tb.batch.Reset()
 }
