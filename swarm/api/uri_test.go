@@ -33,8 +33,6 @@ func TestParseURI(t *testing.T) {
 		expectImmutable           bool
 		expectList                bool
 		expectHash                bool
-		expectDeprecatedRaw       bool
-		expectDeprecatedImmutable bool
 		expectValidKey            bool
 		expectAddr                storage.Address
 	}
