@@ -31,10 +31,10 @@ import (
 	"github.com/AICHAIN-CORE/go-aichain/core/types"
 	"github.com/AICHAIN-CORE/go-aichain/core/vm"
 	"github.com/AICHAIN-CORE/go-aichain/crypto"
-	"github.com/AICHAIN-CORE/go-aichain/crypto/sha3"
 	"github.com/AICHAIN-CORE/go-aichain/ethdb"
 	"github.com/AICHAIN-CORE/go-aichain/params"
 	"github.com/AICHAIN-CORE/go-aichain/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
 // StateTest checks transaction processing without block context.
@@ -248,7 +248,7 @@ func (tx *stTransaction) toMessage(ps stPostState) (core.Message, error) {
 }
 
 func rlpHash(x interface{}) (h common.Hash) {
-	hw := sha3.NewKeccak256()
+	hw := sha3.NewLegacyKeccak256()
 	rlp.Encode(hw, x)
 	hw.Sum(h[:0])
 	return h
