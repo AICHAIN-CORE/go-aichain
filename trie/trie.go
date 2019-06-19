@@ -65,8 +65,8 @@ type LeafCallback func(leaf []byte, parent common.Hash) error
 //
 // Trie is not safe for concurrent use.
 type Trie struct {
-	db           *Database
-	root         node
+	db   *Database
+	root node
 
 	// Cache generation values.
 	// cachegen increases by one with each commit operation.
@@ -97,7 +97,7 @@ func New(root common.Hash, db *Database) (*Trie, error) {
 		panic("trie.New called without a database")
 	}
 	trie := &Trie{
-		db:           db,
+		db: db,
 	}
 	if root != (common.Hash{}) && root != emptyRoot {
 		rootnode, err := trie.resolveHash(root[:], nil)
@@ -434,8 +434,8 @@ func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 	if node := t.db.node(hash, t.cachegen); node != nil {
 		return node, nil
 	}
-		return nil, &MissingNodeError{NodeHash: hash, Path: prefix}
-	}
+	return nil, &MissingNodeError{NodeHash: hash, Path: prefix}
+}
 
 // Root returns the root hash of the trie.
 // Deprecated: use Hash instead.

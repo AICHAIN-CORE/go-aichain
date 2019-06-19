@@ -60,16 +60,16 @@ func TestProof(t *testing.T) {
 	trie, vals := randomTrie(500)
 	root := trie.Hash()
 	for i, prover := range makeProvers(trie) {
-	for _, kv := range vals {
+		for _, kv := range vals {
 			proof := prover(kv.k)
 			if proof == nil {
 				t.Fatalf("prover %d: missing key %x while constructing proof", i, kv.k)
-		}
+			}
 			val, _, err := VerifyProof(root, kv.k, proof)
-		if err != nil {
+			if err != nil {
 				t.Fatalf("prover %d: failed to verify proof for key %x: %v\nraw proof: %x", i, kv.k, err, proof)
-		}
-		if !bytes.Equal(val, kv.v) {
+			}
+			if !bytes.Equal(val, kv.v) {
 				t.Fatalf("prover %d: verified value mismatch for key %x: have %x, want %x", i, kv.k, val, kv.v)
 			}
 		}
@@ -86,12 +86,12 @@ func TestOneElementProof(t *testing.T) {
 		}
 		if proof.Len() != 1 {
 			t.Errorf("prover %d: proof should have one element", i)
-	}
+		}
 		val, _, err := VerifyProof(trie.Hash(), []byte("k"), proof)
-	if err != nil {
+		if err != nil {
 			t.Fatalf("prover %d: failed to verify proof: %v\nraw proof: %x", i, err, proof)
-	}
-	if !bytes.Equal(val, []byte("v")) {
+		}
+		if !bytes.Equal(val, []byte("v")) {
 			t.Fatalf("prover %d: verified value mismatch: have %x, want 'k'", i, val)
 		}
 	}
@@ -101,7 +101,7 @@ func TestBadProof(t *testing.T) {
 	trie, vals := randomTrie(800)
 	root := trie.Hash()
 	for i, prover := range makeProvers(trie) {
-	for _, kv := range vals {
+		for _, kv := range vals {
 			proof := prover(kv.k)
 			if proof == nil {
 				t.Fatalf("prover %d: nil proof", i)
@@ -115,7 +115,7 @@ func TestBadProof(t *testing.T) {
 
 			if _, _, err := VerifyProof(root, kv.k, proof); err == nil {
 				t.Fatalf("prover %d: expected proof to fail for key %x", i, kv.k)
-		}
+			}
 		}
 	}
 }
