@@ -11,7 +11,7 @@ For prerequisites and detailed build instructions please read the
 [Installation Instructions](https://github.com/AICHAIN-CORE/go-aichain/wiki/Building-AICHAIN)
 on the wiki.
 
-Building gait requires both a Go (version 1.7 or later) and a C compiler.
+Building gait requires both a Go (version 1.9 or later) and a C compiler.
 You can install them using your favourite package manager.
 Once the dependencies are installed, run
 
