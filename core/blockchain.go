@@ -1140,6 +1140,460 @@ func (bc *BlockChain) insertTransferRecord2Db(blockNumber *big.Int, transfer *va
 	return nil
 }
 
+func (bc *BlockChain) insertInternalTx2Db(blockNumber *big.Int, transfer *valueTransfer, index int, timestamp *big.Int, insertInternalTx2DbSQL *bytes.Buffer) error {
+	if insertInternalTx2DbSQL.Len() == 0 {
+		insertInternalTx2DbSQL.WriteString(fmt.Sprintf("insert into internal_transaction(parent_txhash, tx_index, depth, block_number, from_address, to_address, amount, type, tx_timestamp)values('%x', %d, %d, %v, '%x', '%x', '%s', 'call', FROM_UNIXTIME(%v))",
+			transfer.transactionHash, index, transfer.depth, blockNumber, transfer.src, transfer.dest, bc.BigInt2Oct(transfer.value), timestamp))
+	} else {
+		insertInternalTx2DbSQL.WriteString(fmt.Sprintf(",('%x', %d, %d, %v, '%x', '%x', '%s', 'call', FROM_UNIXTIME(%v))",
+			transfer.transactionHash, index, transfer.depth, blockNumber, transfer.src, transfer.dest, bc.BigInt2Oct(transfer.value), timestamp))
+	}
+	if insertInternalTx2DbSQL.Len() > maxSQLStringLength {
+		insertInternalTx2DbSQL.WriteString(";")
+		_, err := bc.ExecSQLQuery(insertInternalTx2DbSQL.String())
+		if err != nil {
+			log.Info("Failed to insert internal transaction", "sql", insertInternalTx2DbSQL, "err", err)
+		}
+		// log.Info("Insert internal tx to db", "sql", bc.insertInternalTx2DbSQL)
+		insertInternalTx2DbSQL.Reset()
+	}
+	return nil
+}
+
+func (bc *BlockChain) traceTxs(block *types.Block) error {
+	tracer := vm.NewStructLogger(&vm.LogConfig{DisableMemory: false, DisableStack: false, DisableStorage: false})
+	signer := types.MakeSigner(bc.chainConfig, block.Number())
+
+	statedb, err := bc.StateAt(bc.GetBlockByHash(block.ParentHash()).Root())
+	if err != nil {
+		return err
+	}
+	for _, tx := range block.Transactions() {
+		message, _ := tx.AsMessage(signer)
+
+		// Create a new context to be used in the EVM environment
+		context := NewEVMContext(message, block.Header(), bc, nil)
+		// Run the transaction with tracing enabled.
+		vmenv := vm.NewEVM(context, statedb, bc.chainConfig, vm.Config{Debug: true, Tracer: tracer})
+
+		ret, gas, failed, err := ApplyMessage(vmenv, message, new(GasPool).AddGas(message.Gas()))
+		if err != nil {
+			return err
+		} else {
+			logsJSON, err := json.Marshal(tracer.StructLogs())
+			if err == nil {
+				fmt.Printf("tx execution result: gas:%v, failed:%v, ret=%x, logs:\n %s\n", gas, failed, ret, logsJSON)
+				for _, structLog := range tracer.StructLogs() {
+					switch structLog.Op {
+					case vm.CREATE:
+						logsJSON, err := json.Marshal(structLog)
+						if err == nil {
+							fmt.Printf("tx execution result: gas:%v, failed:%v, ret=%x create op=%s\nlog=\n%s\n", gas, failed, ret, structLog.OpName(), logsJSON)
+						}
+					case vm.CALL:
+						logsJSON, err := json.Marshal(structLog)
+						if err == nil {
+							fmt.Printf("tx execution result: gas:%v, failed:%v, ret=%x create op=%s\nlog=\n%s\n", gas, failed, ret, structLog.OpName(), logsJSON)
+						}
+					case vm.SELFDESTRUCT:
+						logsJSON, err := json.Marshal(structLog)
+						if err == nil {
+							fmt.Printf("tx execution result: gas:%v, failed:%v, ret=%x create op=%s\nlog=\n%s\n", gas, failed, ret, structLog.OpName(), logsJSON)
+						}
+					default:
+						// fmt.Printf("tx execution result: gas:%v, failed:%v, ret=%x op=%s\n", gas, failed, ret, structLog.OpName())
+					}
+				}
+				return err
+			} else {
+				fmt.Printf("tx execution result: gas:%v, failed:%v, ret=%x\n", gas, failed, ret)
+			}
+		}
+	}
+	return err
+}
+
+func (bc *BlockChain) calculateRewards(config *params.ChainConfig, header *types.Header, uncles []*types.Header) *big.Int {
+	// Select the correct block reward based on chain progression
+	blockReward := PoWBlockReward
+	if header.Number.Uint64() <= config.AiConsensus.ForkBlockNumber {
+		blockReward = OldPoWBlockReward
+	}
+	if config.IsCoinDelieverDone(header.Number) {
+		blockReward = big.NewInt(1)
+	}
+	if header.Difficulty.Cmp(diffValidatorInTurn) == 0 ||
+		header.Difficulty.Cmp(diffValidatorNoTurn) == 0 {
+		blockReward = big.NewInt(0)
+	} else if header.Difficulty.Cmp(diffPooledMinerInTurn) == 0 {
+		blockReward = PoABlockReward
+		if config.IsCoinDelieverDone(header.Number) {
+			blockReward = big.NewInt(1)
+		}
+	}
+	return blockReward
+}
+
+func (bc *BlockChain) updateTokenBlance2Db(aitAddress common.Address, contactAddress common.Address, value *big.Int, timestamp *big.Int, tokenBlanceUpdate map[string]*big.Int) error {
+	ok := false
+	tokenDecimals := 0
+	bc.datamu.Lock()
+	if tokenDecimals, ok = bc.tokenDecimals[contactAddress]; !ok {
+		res, err := bc.queryTokenDecimals(&contactAddress)
+		if err == nil {
+			tokenDecimals = int(new(big.Int).SetBytes(res).Int64())
+			bc.tokenDecimals[contactAddress] = tokenDecimals
+		}
+	}
+	found := false
+	if _, found = bc.tokenBlanceFound[aitAddress.Hex()+"-"+contactAddress.Hex()]; !found {
+		balanceQuerySQL := fmt.Sprintf("select balance from token_balance where ait_address='%x' and contract_address = '%x';", aitAddress, contactAddress)
+		rows, err := bc.QuerySQLQuery(balanceQuerySQL)
+		defer rows.Close()
+		if err == nil && rows.Next() {
+			found = true
+			bc.tokenBlanceFound[aitAddress.Hex()+"-"+contactAddress.Hex()] = true
+		}
+	}
+	if !found {
+		balanceInsertSQL := fmt.Sprintf("insert into token_balance (ait_address, balance, contract_address, update_time) values ('%x', '%s', '%x', FROM_UNIXTIME(%v));",
+			aitAddress, bc.BigInt2OctDecimals(value, tokenDecimals), contactAddress, timestamp)
+		_, err := bc.ExecSQLQuery(balanceInsertSQL)
+		if err != nil {
+			log.Crit("failed to insert token balance", "sql", balanceInsertSQL, "err", err)
+		}
+		bc.tokenBlanceFound[aitAddress.Hex()+"-"+contactAddress.Hex()] = true
+	}
+	bc.datamu.Unlock()
+	if found {
+		//	balanceUpateSQL := fmt.Sprintf("update token_balance set balance = '%s' , update_time = FROM_UNIXTIME(%v) where ait_address = '%x' and contract_address = '%x';",
+		//		bc.BigInt2OctDecimals(value, tokenDecimals), timestamp, aitAddress, contactAddress)
+		//	_, err = bc.ExecSQLQuery(balanceUpateSQL)
+		//	if err != nil {
+		//		log.Crit("failed to update token balance", "sql", balanceUpateSQL, "err", err)
+		//	}
+		tokenBlanceUpdate[aitAddress.Hex()+"-"+contactAddress.Hex()] = new(big.Int).Set(value)
+	}
+	return nil
+}
+
+func (bc *BlockChain) updateBlance2Db(aitAddress common.Address, value *big.Int, timestamp *big.Int, balanceUpdate map[common.Address]*big.Int) error {
+	found := false
+	bc.datamu.Lock()
+	if _, found = bc.balanceFound[aitAddress]; !found {
+		balanceQuerySQL := fmt.Sprintf("select balance_value from balance where ait_address='%x';", aitAddress)
+		rows, err := bc.QuerySQLQuery(balanceQuerySQL)
+		defer rows.Close()
+		if err == nil && rows.Next() {
+			found = true
+			bc.balanceFound[aitAddress] = true
+		}
+	}
+	if !found {
+		balanceInsertSQL := fmt.Sprintf("insert into balance (ait_address, balance_value, update_time) values ('%x', '%s', FROM_UNIXTIME(%v));",
+			aitAddress, bc.BigInt2Oct(value), timestamp)
+		_, err := bc.ExecSQLQuery(balanceInsertSQL)
+		if err != nil {
+			log.Crit("failed to insert balance", "sql", balanceInsertSQL, "err", err)
+		} else {
+			bc.balanceFound[aitAddress] = true
+		}
+	}
+	bc.datamu.Unlock()
+
+	if found {
+		// balanceUpateSQL := fmt.Sprintf("update balance set balance_value = '%s' , update_time = FROM_UNIXTIME(%v) where ait_address = '%x';",
+		// 	bc.BigInt2Oct(value), timestamp, aitAddress)
+		// _, err := bc.ExecSQLQuery(balanceUpateSQL)
+		// if err != nil {
+		// 	log.Crit("failed to update balance", "sql", balanceUpateSQL, "err", err)
+		// }
+		balanceUpdate[aitAddress] = new(big.Int).Set(value)
+	}
+	return nil
+}
+
+func (bc *BlockChain) updateBlance2DbInternalTx(aitAddress common.Address, value *big.Int, timestamp *big.Int, balanceUpdate map[common.Address]*big.Int) error {
+	found := false
+	bc.datamu.Lock()
+	if _, found = bc.balanceFound[aitAddress]; !found {
+		balanceQuerySQL := fmt.Sprintf("select balance_value from balance where ait_address='%x';", aitAddress)
+		rows, err := bc.QuerySQLQuery(balanceQuerySQL)
+		defer rows.Close()
+		if err == nil && rows.Next() {
+			found = true
+			bc.balanceFound[aitAddress] = true
+		}
+	}
+	if !found {
+		balanceInsertSQL := fmt.Sprintf("insert into balance (ait_address, balance_value, update_time) values ('%x', '%s', FROM_UNIXTIME(%v));",
+			aitAddress, bc.BigInt2Oct(value), timestamp)
+		_, err := bc.ExecSQLQuery(balanceInsertSQL)
+		if err != nil {
+			log.Crit("failed to insert balance", "sql", balanceInsertSQL, "err", err)
+		} else {
+			bc.balanceFound[aitAddress] = true
+		}
+	}
+	bc.datamu.Unlock()
+
+	if found {
+		// balanceUpateSQL := fmt.Sprintf("update balance set balance_value = '%s' , update_time = FROM_UNIXTIME(%v) where ait_address = '%x';",
+		// 	bc.BigInt2Oct(value), timestamp, aitAddress)
+		// _, err := bc.ExecSQLQuery(balanceUpateSQL)
+		// if err != nil {
+		// 	log.Crit("failed to update balance", "sql", balanceUpateSQL, "err", err)
+		// }
+		balanceUpdate[aitAddress] = new(big.Int).Set(value)
+	}
+	return nil
+}
+
+func (bc *BlockChain) ExecSQLQuery(sql string) (int64, error) {
+	// log.Info("ExecSQLQuery enter", "sql", sql)
+	// defer log.Info("ExecSQLQuery exit")
+	// bc.sqlmu.Lock()
+	// defer bc.sqlmu.Unlock()
+	stmt, err := bc.mysqldb.Prepare(sql)
+	if err != nil {
+		log.Info("failed to prepare sql statement", "sql", sql, "err", err)
+		return 0, err
+	}
+	res, err := stmt.Exec()
+	if err != nil {
+		log.Info("failed to execute sql statement", "sql", sql, "err", err)
+		return 0, err
+	}
+	num, err := res.RowsAffected()
+	if err != nil {
+		log.Info("failed to execute sql statement", "sql", sql, "err", err)
+		return 0, err
+	}
+	// fmt.Println("sql executes success, affected: ", num)
+	err = stmt.Close()
+	if err != nil {
+		log.Info("failed to close sql statement", "sql", sql, "err", err)
+		return 0, err
+	}
+	return num, nil
+}
+
+func (bc *BlockChain) flushInternalTxData2Db(timestamp *big.Int, balanceUpdate map[common.Address]*big.Int,
+	insertTransferRecord2DbSQL *bytes.Buffer, insertInternalTx2DbSQL *bytes.Buffer) error {
+	if insertTransferRecord2DbSQL.Len() > 0 {
+		insertTransferRecord2DbSQL.WriteString(";")
+		_, err := bc.ExecSQLQuery(insertTransferRecord2DbSQL.String())
+		if err != nil {
+			log.Crit("failed to update balance", "sql", insertTransferRecord2DbSQL, "err", err)
+			return err
+		}
+		// log.Info("Insert txRecord to db", "sql", bc.insertTransferRecord2DbSQL)
+		insertTransferRecord2DbSQL.Reset()
+	}
+	if insertInternalTx2DbSQL.Len() > 0 {
+		insertInternalTx2DbSQL.WriteString(";")
+		_, err := bc.ExecSQLQuery(insertInternalTx2DbSQL.String())
+		if err != nil {
+			log.Crit("failed to update balance", "sql", insertInternalTx2DbSQL, "err", err)
+			return err
+		}
+		// log.Info("Insert internal tx to db", "sql", bc.insertInternalTx2DbSQL)
+		insertInternalTx2DbSQL.Reset()
+	}
+	if len(balanceUpdate) > 0 {
+		var balanceUpateSQL bytes.Buffer
+		var balanceSQL bytes.Buffer
+		var addressListSQL bytes.Buffer
+		balanceUpateSQL.Reset()
+		balanceSQL.Reset()
+		addressListSQL.Reset()
+
+		for aitAddress := range balanceUpdate {
+			balanceSQL.WriteString(fmt.Sprintf("WHEN '%x' THEN '%s' ", aitAddress, bc.BigInt2Oct(balanceUpdate[aitAddress])))
+			if addressListSQL.Len() == 0 {
+				addressListSQL.WriteString(fmt.Sprintf("'%x' ", aitAddress))
+			} else {
+				addressListSQL.WriteString(fmt.Sprintf(", '%x' ", aitAddress))
+			}
+			// UPDATE balance SET balance_value = (CASE ait_address
+			// 	WHEN '854d638adfb5f8f48a1899c8b3c2a7681ac00d6c' THEN '100000'
+			// 	WHEN '6c98f6856babbd73db00c19323b02faf8f65f76a' THEN '100000'
+			// 	END) WHERE ait_address IN (
+			// 		'854d638adfb5f8f48a1899c8b3c2a7681ac00d6c', '6c98f6856babbd73db00c19323b02faf8f65f76a'
+			// 	)
+			if balanceSQL.Len()+addressListSQL.Len() > maxSQLStringLength {
+				balanceUpateSQL.WriteString("UPDATE balance SET balance_value = ( CASE ait_address ")
+				balanceUpateSQL.WriteString(balanceSQL.String())
+				balanceUpateSQL.WriteString("END ) ")
+				balanceUpateSQL.WriteString(fmt.Sprintf(", update_time = FROM_UNIXTIME(%v) ", timestamp))
+				balanceUpateSQL.WriteString("WHERE ait_address IN (")
+				balanceUpateSQL.WriteString(addressListSQL.String())
+				balanceUpateSQL.WriteString(");")
+				_, err := bc.ExecSQLQuery(balanceUpateSQL.String())
+				if err != nil {
+					log.Crit("failed to update balance", "sql", balanceUpateSQL, "err", err)
+					return err
+				}
+				balanceUpateSQL.Reset()
+				balanceSQL.Reset()
+				addressListSQL.Reset()
+			}
+			// log.Info("update balance to db", "address", aitAddress, "balance", bc.balanceUpdate[aitAddress])
+		}
+		if balanceSQL.Len()+addressListSQL.Len() > 0 {
+			balanceUpateSQL.WriteString("UPDATE balance SET balance_value = ( CASE ait_address ")
+			balanceUpateSQL.WriteString(balanceSQL.String())
+			balanceUpateSQL.WriteString("END ) ")
+			balanceUpateSQL.WriteString(fmt.Sprintf(", update_time = FROM_UNIXTIME(%v) ", timestamp))
+			balanceUpateSQL.WriteString("WHERE ait_address IN (")
+			balanceUpateSQL.WriteString(addressListSQL.String())
+			balanceUpateSQL.WriteString(");")
+			_, err := bc.ExecSQLQuery(balanceUpateSQL.String())
+			if err != nil {
+				log.Crit("failed to update balance", "sql", balanceUpateSQL, "err", err)
+				return err
+			}
+			balanceUpateSQL.Reset()
+			balanceSQL.Reset()
+			addressListSQL.Reset()
+		}
+	}
+	return nil
+}
+
+func (bc *BlockChain) flushData2Db(timestamp *big.Int, insertTxSQL *bytes.Buffer, insertERC20TxSQL *bytes.Buffer, receiptInsertSQL *bytes.Buffer,
+	balanceUpdate map[common.Address]*big.Int, tokenBlanceUpdate map[string]*big.Int) error {
+	// log.Info("flushData2Db enter")
+	if insertTxSQL.Len() > 0 {
+		_, err := bc.ExecSQLQuery(insertTxSQL.String())
+		if err != nil {
+			log.Crit("failed to insert tx", "sql", insertTxSQL, "err", err)
+			return err
+		}
+		// log.Info("Insert tx to db", "sql", insertTxSQL)
+		insertTxSQL.Reset()
+	}
+	if insertERC20TxSQL.Len() > 0 {
+		_, err := bc.ExecSQLQuery(insertERC20TxSQL.String())
+		if err != nil {
+			log.Crit("failed to insert erc20 tx", "sql", insertERC20TxSQL, "err", err)
+			return err
+		}
+		// log.Info("Insert erc20 to db", "sql", insertERC20TxSQL)
+		insertERC20TxSQL.Reset()
+	}
+	if receiptInsertSQL.Len() > 0 {
+		_, err := bc.ExecSQLQuery(receiptInsertSQL.String())
+		if err != nil {
+			log.Crit("failed to insert tx receipt", "sql", receiptInsertSQL, "err", err)
+			return err
+		}
+		// log.Info("Insert erc20 to db", "sql", insertERC20TxSQL)
+		receiptInsertSQL.Reset()
+	}
+
+	if len(balanceUpdate) > 0 {
+		var balanceUpateSQL bytes.Buffer
+		var balanceSQL bytes.Buffer
+		var addressListSQL bytes.Buffer
+		balanceUpateSQL.Reset()
+		balanceSQL.Reset()
+		addressListSQL.Reset()
+
+		for aitAddress := range balanceUpdate {
+			balanceSQL.WriteString(fmt.Sprintf("WHEN '%x' THEN '%s' ", aitAddress, bc.BigInt2Oct(balanceUpdate[aitAddress])))
+			if addressListSQL.Len() == 0 {
+				addressListSQL.WriteString(fmt.Sprintf("'%x' ", aitAddress))
+			} else {
+				addressListSQL.WriteString(fmt.Sprintf(", '%x' ", aitAddress))
+			}
+			// UPDATE balance SET balance_value = (CASE ait_address
+			// 	WHEN '854d638adfb5f8f48a1899c8b3c2a7681ac00d6c' THEN '100000'
+			// 	WHEN '6c98f6856babbd73db00c19323b02faf8f65f76a' THEN '100000'
+			// 	END) WHERE ait_address IN (
+			// 		'854d638adfb5f8f48a1899c8b3c2a7681ac00d6c', '6c98f6856babbd73db00c19323b02faf8f65f76a'
+			// 	)
+			if balanceSQL.Len()+addressListSQL.Len() > maxSQLStringLength {
+				balanceUpateSQL.WriteString("UPDATE balance SET balance_value = ( CASE ait_address ")
+				balanceUpateSQL.WriteString(balanceSQL.String())
+				balanceUpateSQL.WriteString("END ) ")
+				balanceUpateSQL.WriteString(fmt.Sprintf(", update_time = FROM_UNIXTIME(%v) ", timestamp))
+				balanceUpateSQL.WriteString("WHERE ait_address IN (")
+				balanceUpateSQL.WriteString(addressListSQL.String())
+				balanceUpateSQL.WriteString(");")
+				_, err := bc.ExecSQLQuery(balanceUpateSQL.String())
+				if err != nil {
+					log.Crit("failed to update balance", "sql", balanceUpateSQL, "err", err)
+					return err
+				}
+				balanceUpateSQL.Reset()
+				balanceSQL.Reset()
+				addressListSQL.Reset()
+			}
+			// log.Info("update balance to db", "address", aitAddress, "balance", bc.balanceUpdate[aitAddress])
+		}
+		if balanceSQL.Len()+addressListSQL.Len() > 0 {
+			balanceUpateSQL.WriteString("UPDATE balance SET balance_value = ( CASE ait_address ")
+			balanceUpateSQL.WriteString(balanceSQL.String())
+			balanceUpateSQL.WriteString("END ) ")
+			balanceUpateSQL.WriteString(fmt.Sprintf(", update_time = FROM_UNIXTIME(%v) ", timestamp))
+			balanceUpateSQL.WriteString("WHERE ait_address IN (")
+			balanceUpateSQL.WriteString(addressListSQL.String())
+			balanceUpateSQL.WriteString(");")
+			_, err := bc.ExecSQLQuery(balanceUpateSQL.String())
+			if err != nil {
+				log.Crit("failed to update balance", "sql", balanceUpateSQL, "err", err)
+				return err
+			}
+			balanceUpateSQL.Reset()
+			balanceSQL.Reset()
+			addressListSQL.Reset()
+		}
+	}
+
+	if len(tokenBlanceUpdate) > 0 {
+		for aitAddressAndContractAddress := range tokenBlanceUpdate {
+			address := strings.Split(aitAddressAndContractAddress, "-")
+			aitAddress := address[0]
+			contractAddress := address[1]
+			bc.datamu.Lock()
+			tokenDecimals := bc.tokenDecimals[common.HexToAddress(contractAddress)]
+			bc.datamu.Unlock()
+			balanceUpateSQL := fmt.Sprintf("update token_balance set balance = '%s' , update_time = FROM_UNIXTIME(%v) where ait_address = '%x' and contract_address = '%s';",
+				bc.BigInt2OctDecimals(tokenBlanceUpdate[aitAddressAndContractAddress], tokenDecimals), timestamp, aitAddress, contractAddress)
+			_, err := bc.ExecSQLQuery(balanceUpateSQL)
+			if err != nil {
+				log.Crit("failed to update token balance", "sql", balanceUpateSQL, "err", err)
+				return err
+			}
+			// log.Info("update balance to db", "address", aitAddress, "contractAddress", contractAddress, "balance", bc.tokenBlanceUpdate[aitAddressAndContractAddress])
+		}
+	}
+	// log.Info("flushData2Db exit")
+	return nil
+}
+
+func (bc *BlockChain) QuerySQLQuery(sql string) (*sql.Rows, error) {
+	// log.Info("QuerySQLQuery enter", "sql", sql)
+	// defer log.Info("QuerySQLQuery exit")
+	stmt, err := bc.mysqldb.Prepare(sql)
+	if err != nil {
+		log.Info("failed to prepare sql statement", "sql", sql, "err", err)
+		return nil, err
+	}
+	rows, err := stmt.Query()
+	if err != nil {
+		log.Info("failed to execute sql statement", "sql", sql, "err", err)
+		return nil, err
+	}
+	err = stmt.Close()
+	if err != nil {
+		log.Info("failed to close sql statement", "sql", sql, "err", err)
+		return nil, err
+	}
+	return rows, nil
+}
+
 // Genesis retrieves the chain's genesis block.
 func (bc *BlockChain) Genesis() *types.Block {
 	return bc.genesisBlock

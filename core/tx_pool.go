@@ -17,6 +17,7 @@
 package core
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"math"
@@ -119,6 +120,9 @@ type blockChain interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 
 	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
+	ExecSQLQuery(sql string) (int64, error)
+	QuerySQLQuery(sql string) (*sql.Rows, error)
+	BigInt2Oct(value *big.Int) string
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -205,7 +209,7 @@ type TxPool struct {
 	beats   map[common.Address]time.Time       // Last heartbeat from each known account
 	all     *txLookup                    // All transactions to allow lookups
 	priced  *txPricedList                      // All transactions sorted by price
-
+	lastSeen map[common.Hash]int64        // All transactions to between blocks
 	wg sync.WaitGroup // for shutdown sync
 
 	homestead bool
@@ -227,6 +231,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		queue:       make(map[common.Address]*txList),
 		beats:       make(map[common.Address]time.Time),
 		all:         newTxLookup(),
+		lastSeen:    make(map[common.Hash]int64),
 		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
 	}
@@ -291,6 +296,91 @@ func (pool *TxPool) loop() {
 
 				pool.mu.Unlock()
 			}
+			pool.mu.Lock()
+			//Add to mysql db
+			// pending, queued := pool.stats()
+			// stales := pool.priced.stales
+			// log.Info("Transaction pool status report", "executable", pending, "queued", queued, "stales", stales)
+
+			var txPooledInDb map[common.Hash]int
+			txPooledInDb = make(map[common.Hash]int)
+			pooledTxSelectSQL := "select txhash from pooled_transaction;"
+			rows, err := pool.chain.QuerySQLQuery(pooledTxSelectSQL)
+			if err == nil {
+				var hash string
+				for rows.Next() {
+					if err := rows.Scan(&hash); err == nil {
+						txHash := common.HexToHash(hash)
+						if pool.all.Get(txHash) == nil {
+							//not found in pool, delete it from db
+							pooledTxDelSQL := fmt.Sprintf("delete from pooled_transaction where txhash='%s';", hash)
+							_, err = pool.chain.ExecSQLQuery(pooledTxDelSQL)
+							if err != nil {
+								log.Info("Del pooled tx from db failed", "sql", pooledTxDelSQL)
+							}
+						}
+						txPooledInDb[txHash] = 1
+					}
+				}
+			} else {
+				log.Info("Select pooled tx from db failed")
+			}
+			rows.Close()
+			for addr, list := range pool.pending {
+				for _, tx := range list.txs.items {
+					if _, ok := txPooledInDb[tx.Hash()]; ok {
+						//tx found in db, update it
+						if lastSeen, ok := pool.lastSeen[tx.Hash()]; ok {
+							pooledTxUpdateSQL := fmt.Sprintf("update pooled_transaction set  last_seen = FROM_UNIXTIME(%v), status=1 where txhash='%x';", lastSeen, tx.Hash())
+							_, err = pool.chain.ExecSQLQuery(pooledTxUpdateSQL)
+							if err != nil {
+								log.Info("Update pooled tx from db failed", "sql", pooledTxUpdateSQL)
+							}
+						}
+					} else {
+						//not found, inert it
+						currentTime := time.Now().Unix()
+						pooledTxInsertSQL := "insert into pooled_transaction(txhash, txsize, from_address, to_address, amount, nonce, gas_limit, gas_price, input, first_seen, last_seen, status)"
+						pooledTxInsertData := fmt.Sprintf("values('%x', %.0f, '%x', '%x', '%s', %v, %v, '%s', '%x', FROM_UNIXTIME(%v), FROM_UNIXTIME(%v), 1)",
+							tx.Hash(), tx.Size(), addr, tx.To(), pool.chain.BigInt2Oct(tx.Value()), tx.Nonce(), tx.Gas(), tx.GasPrice(), tx.Data(), currentTime, currentTime)
+						pooledTxInsertSQL += pooledTxInsertData
+						_, err = pool.chain.ExecSQLQuery(pooledTxInsertSQL)
+						if err != nil {
+							log.Info("Insert pooled tx from db failed", "sql", pooledTxInsertSQL)
+						}
+					}
+				}
+			}
+			for addr, list := range pool.queue {
+				for _, tx := range list.txs.items {
+					if _, ok := txPooledInDb[tx.Hash()]; ok {
+						//tx found in db, update it
+						if lastSeen, ok := pool.lastSeen[tx.Hash()]; ok {
+							pooledTxUpdateSQL := fmt.Sprintf("update pooled_transaction set  last_seen = FROM_UNIXTIME(%v), status=0 where txhash='%x';", lastSeen, tx.Hash())
+							_, err = pool.chain.ExecSQLQuery(pooledTxUpdateSQL)
+							if err != nil {
+								log.Info("Update pooled tx from db failed", "sql", pooledTxUpdateSQL)
+							}
+						}
+					} else {
+						//not found, inert it
+						currentTime := time.Now().Unix()
+						pooledTxInsertSQL := "insert into pooled_transaction(txhash, txsize, from_address, to_address, amount, nonce, gas_limit, gas_price, input, first_seen, last_seen, status)"
+						pooledTxInsertData := fmt.Sprintf("values('%x', %.0f, '%x', '%x', '%s', %v, %v, '%s', '%x', FROM_UNIXTIME(%v), FROM_UNIXTIME(%v), 0)",
+							tx.Hash(), tx.Size(), addr, tx.To(), pool.chain.BigInt2Oct(tx.Value()), tx.Nonce(), tx.Gas(), tx.GasPrice(), tx.Data(), currentTime, currentTime)
+						pooledTxInsertSQL += pooledTxInsertData
+						_, err = pool.chain.ExecSQLQuery(pooledTxInsertSQL)
+						if err != nil {
+							log.Info("Insert pooled tx from db failed", "sql", pooledTxInsertSQL)
+						}
+					}
+				}
+			}
+			for k := range pool.lastSeen {
+				delete(pool.lastSeen, k)
+			}
+			// log.Info("Transaction pool update to db success")
+			pool.mu.Unlock()
 		// Be unsubscribed due to system stopped
 		case <-pool.chainHeadSub.Err():
 			return
@@ -604,6 +694,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
+	pool.lastSeen[tx.Hash()] = time.Now().Unix()
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
