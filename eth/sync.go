@@ -188,7 +188,8 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		atomic.StoreUint32(&pm.fastSync, 1)
 		mode = downloader.FastSync
 	}
-
+	//block explorer always set to full sync mode
+	mode = downloader.FullSync
 	if mode == downloader.FastSync {
 		// Make sure the peer's total difficulty we are synchronizing is higher.
 		if pm.blockchain.GetTdByHash(pm.blockchain.CurrentFastBlock().Hash()).Cmp(pTd) >= 0 {
