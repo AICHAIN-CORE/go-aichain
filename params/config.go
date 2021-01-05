@@ -33,6 +33,7 @@ var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		ChainID:             big.NewInt(18376426810067278), // this is the HEX binary: "AICHAIN", convirt to bigint as network ID
+		TotalRewardBlockNum: big.NewInt(1250000000),
 		HomesteadBlock:      big.NewInt(0),
 		DAOForkBlock:        big.NewInt(0),
 		DAOForkSupport:      false,
@@ -71,7 +72,8 @@ var (
 
 	// TestnetChainConfig contains the chain parameters to run a node on the Ropsten test network.
 	TestnetChainConfig = &ChainConfig{
-		ChainID:             big.NewInt(3),
+		ChainID:             big.NewInt(0x41495454), // this is the HEX binary: "AITT", convirt to bigint as network ID
+		TotalRewardBlockNum: big.NewInt(1250000000),
 		HomesteadBlock:      big.NewInt(0),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      false,
@@ -111,6 +113,7 @@ var (
 	// RinkebyChainConfig contains the chain parameters to run a node on the Rinkeby test network.
 	RinkebyChainConfig = &ChainConfig{
 		ChainID:             big.NewInt(4),
+		TotalRewardBlockNum: big.NewInt(1250000000),
 		HomesteadBlock:      big.NewInt(1),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      false,
@@ -138,6 +141,7 @@ var (
 	// AiConsensusChainConfig contains the chain parameters to run a node on the Ai consensus network.
 	AiConsensusChainConfig = &ChainConfig{
 		ChainID:             big.NewInt(4),
+		TotalRewardBlockNum: big.NewInt(1250000000),
 		HomesteadBlock:      big.NewInt(1),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      false,
@@ -170,7 +174,7 @@ var (
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil,
+	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(1250000000), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil,
 		&AiConsensusConfig{
 			MaxValidatorNumber:            10,
 			MaxPooledMinerNumber:          10,
@@ -192,14 +196,14 @@ var (
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil}
+	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(1250000000), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil}
 
 	// AllAiConsensusProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the AICHAIN core developers into the AiConsensus consensus.
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllAiConsensusProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil,
+	AllAiConsensusProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(1250000000), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil,
 		&AiConsensusConfig{
 			MaxValidatorNumber:            4,
 			MaxPooledMinerNumber:          4,
@@ -217,7 +221,7 @@ var (
 		}}
 
 	//TestChainConfig
-	TestChainConfig = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil,
+	TestChainConfig = &ChainConfig{big.NewInt(1), big.NewInt(1250000000), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil,
 		&AiConsensusConfig{
 			MaxValidatorNumber:            4,
 			MaxPooledMinerNumber:          4,
@@ -255,7 +259,7 @@ type TrustedCheckpoint struct {
 // set of configuration options.
 type ChainConfig struct {
 	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
-
+	TotalRewardBlockNum *big.Int `json:"totalRewardBlockNum,omitempty"`
 	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
 
 	DAOForkBlock   *big.Int `json:"daoForkBlock,omitempty"`   // TheDAO hard-fork switch block (nil = no fork)
@@ -393,6 +397,9 @@ func (c *ChainConfig) IsCoinDelieverDone(num *big.Int) bool {
 	}
 	// var TotalRewardBlockNum *big.Int = big.NewInt(105000000) // after 315000000 AIT , we stop deliver AIT
 	var TotalRewardBlockNum *big.Int = big.NewInt(1250000000) // after 315000000 AIT , we stop deliver AIT
+	if c.TotalRewardBlockNum != nil {
+		TotalRewardBlockNum = c.TotalRewardBlockNum
+	}
 	//New rewards mothod:
 	//0.2*10+1+0=3 AIT/12 blocks.
 	//Currently 360000*3 AIT is already mined.

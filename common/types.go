@@ -74,7 +74,7 @@ func (h Hash) Hex() string { return hexutil.Encode(h[:]) }
 // TerminalString implements log.TerminalStringer, formatting a string for console
 // output during logging.
 func (h Hash) TerminalString() string {
-	return fmt.Sprintf("%xâ€¦%x", h[:3], h[29:])
+	return fmt.Sprintf("%xâ€?x", h[:3], h[29:])
 }
 
 // String implements the stringer interface and is used also by the logger when
@@ -212,8 +212,9 @@ func (a Address) Hex() string {
 			result[i] -= 32
 		}
 	}
+	return string(result)
 	// return "0x" + string(result)
-	return "ai" + string(result) // change to use AI as prefix
+	//	return "ai" + string(result) // change to use AI as prefix
 }
 
 // String implements fmt.Stringer.
@@ -238,7 +239,7 @@ func (a *Address) SetBytes(b []byte) {
 
 // MarshalText returns the hex representation of a.
 func (a Address) MarshalText() ([]byte, error) {
-	return hexutil.Bytes(a[:]).MarshalTextAIT()
+	return hexutil.Bytes(a[:]).MarshalText()
 }
 
 // UnmarshalText parses a hash in hex syntax.

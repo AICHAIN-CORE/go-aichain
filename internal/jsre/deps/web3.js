@@ -1127,7 +1127,7 @@ var formatOutputString = function (param) {
  */
 var formatOutputAddress = function (param) {
     var value = param.staticPart();
-    return "ai" + value.slice(value.length - 40, value.length);
+    return "0x" + value.slice(value.length - 40, value.length);
 };
 
 module.exports = {
