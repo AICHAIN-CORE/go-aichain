@@ -32,7 +32,7 @@ var (
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
-		ChainID:             big.NewInt(18376426810067278), // this is the HEX binary: "AICHAIN", convirt to bigint as network ID
+		ChainID:             big.NewInt(0x4149434e), // this is the HEX binary: "AICN", convirt to bigint as network ID
 		TotalRewardBlockNum: big.NewInt(1250000000),
 		HomesteadBlock:      big.NewInt(0),
 		DAOForkBlock:        big.NewInt(0),
@@ -423,9 +423,9 @@ func (c *ChainConfig) CheckMinerAccountAit(num *big.Int) bool {
 
 func (c *ChainConfig) DefaultCoinbase() string {
 	if c.ChainID.Cmp(MainnetChainConfig.ChainID) == 0 {
-		return "ai6846e953b9594b602bab319d1114836c2b050491"
+		return "6846e953b9594b602bab319d1114836c2b050491"
 	}
-	return "aib135fb747599b830e2110b56e3c76496dc412c54"
+	return "b135fb747599b830e2110b56e3c76496dc412c54"
 }
 
 func (c *ChainConfig) DefaultDifficaulty() *big.Int {
