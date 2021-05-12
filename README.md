@@ -108,8 +108,6 @@ To get an idea how the file should look like you can use the `dumpconfig` subcom
 $ gait --your-favourite-flags dumpconfig
 ```
 
-*Note: This works only with gait v1.6.0 and above.*
-
 #### Docker quick start
 
 One of the quickest ways to get AICHAIN up and running on your machine is by using Docker:
@@ -272,9 +270,10 @@ https://scan.aichain.me/
 
 #### AICHAIN node current version
 
-Current version: 1.0.3
-The testnet and mainnet both are running online, but only testnet is ready for open to public.
-But the people still can use the release package to connect to testnet and mainnet.
+Current version: 1.0.7
+The testnet and mainnet have been reset on version 1.0.7
+The blockchain of testnet and mainnet run again with new chain ID and blockchain data.
+The people can use the release package to connect to testnet and mainnet.
 
 ## License
 
