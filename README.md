@@ -170,7 +170,7 @@ and agree upon. This consists of a small JSON file (e.g. call it `genesis.json`)
 ```json
 {
   "config": {
-        "chainId": 0,
+        "chainId": 12345678,
         "homesteadBlock": 0,
         "eip155Block": 0,
         "eip158Block": 0
