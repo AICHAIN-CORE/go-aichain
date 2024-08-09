@@ -264,7 +264,8 @@ The testnet blockchain explorer:
 https://testnetscan.aichain.me/
 
 The mainnet blockchain explorer:
-https://scan.aichain.me/
+Stopped, not running!
+ (Most users are students of university, who only use testnet network. Hope someone or some team can continue this project to run mainnet again.)
 
 #### AICHAIN node current version
 
